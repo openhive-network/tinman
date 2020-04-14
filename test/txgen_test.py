@@ -6,12 +6,12 @@ from tinman import txgen
 
 FULL_CONF = {
     "transactions_per_block" : 40,
-    "steem_block_interval" : 3,
+    "hive_block_interval" : 3,
     "num_blocks_to_clear_witness_round" : 21,
     "transaction_witness_setup_pad" : 100,
-    "steem_max_authority_membership" : 10,
-    "steem_address_prefix" : "TST",
-    "steem_init_miner_name" : 'initminer',
+    "hive_max_authority_membership" : 10,
+    "hive_address_prefix" : "TST",
+    "hive_init_miner_name" : 'initminer',
     "snapshot_file" : "/tmp/test-snapshot.json",
     "backfill_file" : "/tmp/test-backfill.actions",
     "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
@@ -42,9 +42,9 @@ FULL_CONF = {
             "creator" : "initminer",
             "vesting" : {"amount" : "1000000", "precision" : 3, "nai" : "@@000000021"}
         },
-            "STEEM_MINER_ACCOUNT" : {"name" : "mners"},
-            "STEEM_NULL_ACCOUNT" : {"name" : "null"},
-            "STEEM_TEMP_ACCOUNT" : {"name" : "temp"}
+            "HIVE_MINER_ACCOUNT" : {"name" : "mners"},
+            "HIVE_NULL_ACCOUNT" : {"name" : "null"},
+            "HIVE_TEMP_ACCOUNT" : {"name" : "temp"}
         }
     }
 
@@ -97,7 +97,7 @@ class TxgenTest(unittest.TestCase):
             for op in witness["operations"]:
                 self.assertEqual(op["type"], "witness_update_operation")
                 value = op["value"]
-                self.assertEqual(value["url"], "https://steemit.com/")
+                self.assertEqual(value["url"], "https://hive.blog/")
                 self.assertEqual(value["props"], {})
                 self.assertEqual(value["fee"], {"amount" : "0", "precision" : 3, "nai" : "@@000000021"})
 
@@ -146,7 +146,7 @@ class TxgenTest(unittest.TestCase):
         
         self.assertEqual(account_stats["account_names"], expected_account_names)
         self.assertEqual(account_stats["total_vests"], 103927120221962824)
-        self.assertEqual(account_stats["total_steem"], 60859732440)
+        self.assertEqual(account_stats["total_hive"], 60859732440)
 
     def test_get_proportions(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
@@ -161,7 +161,7 @@ class TxgenTest(unittest.TestCase):
         
         self.assertEqual(proportions["min_vesting_per_account"], 1)
         self.assertEqual(proportions["vest_conversion_factor"], 1469860)
-        self.assertEqual(proportions["steem_conversion_factor"], 776237928593)
+        self.assertEqual(proportions["hive_conversion_factor"], 776237928593)
 
     def test_create_accounts(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
@@ -210,12 +210,12 @@ class TxgenTest(unittest.TestCase):
             for op in account["operations"]:
                 value = op["value"]
                 self.assertIn(["tnman", 1], value["owner"]["account_auths"])
-                self.assertLessEqual(len(value["owner"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["active"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["posting"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["owner"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["active"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["owner"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["active"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["posting"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["owner"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["active"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
             
     def test_build_actions(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")

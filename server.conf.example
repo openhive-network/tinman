@@ -3,7 +3,7 @@
  "account_creator": "initminer",
 
  "transaction_target": {
-  "node": "https://api.steemit.com",
+  "node": "https://api.openhive.network",
   "appbase": "True"
  }
 

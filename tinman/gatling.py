@@ -133,7 +133,7 @@ def build_actions(conf, min_block, max_block, from_blocks_ago, to_blocks_ago):
     return
 
 def main(argv):
-    parser = argparse.ArgumentParser(prog=argv[0], description="Port transactions for Steem testnet")
+    parser = argparse.ArgumentParser(prog=argv[0], description="Port transactions for Hive testnet")
     parser.add_argument("-c", "--conffile", default="gatling.conf", dest="conffile", metavar="FILE", help="Specify configuration file")
     parser.add_argument("-f", "--from_block", default=-1, dest="min_block_num", metavar="INT", help="Stream from block_num")
     parser.add_argument("-t", "--to_block", default=-1, dest="max_block_num", metavar="INT", help="Stream to block_num")

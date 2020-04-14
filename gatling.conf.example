@@ -5,7 +5,7 @@
 
  "transaction_source" :
  {
-  "node" : "https://api.steemit.com",
+  "node" : "https://api.openhive.network",
   "appbase" : "True"
  },
 

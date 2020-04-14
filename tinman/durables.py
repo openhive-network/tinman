@@ -47,7 +47,7 @@ def build_actions(conf, silent=True):
     return
 
 def main(argv):
-    parser = argparse.ArgumentParser(prog=argv[0], description="Generate durable objects for Steem testnet")
+    parser = argparse.ArgumentParser(prog=argv[0], description="Generate durable objects for Hive testnet")
     parser.add_argument("-c", "--conffile", default="durables.conf", dest="conffile", metavar="FILE", help="Specify configuration file")
     parser.add_argument("-o", "--outfile", default="-", dest="outfile", metavar="FILE", help="Specify output file, - means stdout")
     args = parser.parse_args(argv[1:])

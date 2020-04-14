@@ -57,7 +57,7 @@ assumes the source code lives in `~/src/tinman`:
 ```bash
 $ mkdir -p ~/src
 $ cd ~/src
-$ git clone --branch master https://github.com/steemit/tinman.git
+$ git clone --branch master https://gitlab.syncad.com/hive/tinman.git
 $ cd tinman
 $ pip install pipenv
 $ pipenv install
@@ -103,9 +103,9 @@ Create a bash script, call it `bootstrap.sh`, make sure the `--get-dev-key` and 
   echo '["set_secret", {"secret":"xyz-"}]' ; \
   cat txgen.actions \
 ) | \
-tinman keysub --get-dev-key /path/to/steem/programs/util/get_dev_key | \
+tinman keysub --get-dev-key /path/to/hive/programs/util/get_dev_key | \
 tinman submit --realtime -t http://127.0.0.1:9990 \
-  --signer /path/to/steem/programs/util/sign_transaction \
+  --signer /path/to/hive/programs/util/sign_transaction \
   -f fail.json \
   -t 600
 ```
@@ -175,7 +175,7 @@ Some notes about `tinman txgen`:
 
 - All accounts have `porter` as an additional authority, allowing the testnet creator to act as any account on the testnet
 - The private keys for `porter` and other accounts are deterministically created based on the `secret` option in the config file
-- Balances are created by dividing `total_port_balance` proportionally among the live STEEM and vesting, subject to `min_vesting_per_account`.
+- Balances are created by dividing `total_port_balance` proportionally among the live HIVE and vesting, subject to `min_vesting_per_account`.
 - Therefore, testnet balance is not equal to mainnet balance.  Rather, it is proportional to mainnet balance.
 - Accounts listed in `txgen.conf` are considered system accounts, any identically named account in the snapshot will not be ported
 
@@ -183,7 +183,7 @@ Some notes about `tinman txgen`:
 
 To maintain separation of concerns in `tinman` tools, the `tinman txgen` tool
 does not directly generate transactions containing private keys (except
-the `STEEM_INIT_PRIVATE_KEY` WIF, `5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n`).
+the `HIVE_INIT_PRIVATE_KEY` WIF, `5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n`).
 Instead *keystrings* such as `publickey:active-porter` are outputted in place
 of the actual public key of the `porter` account.
 
@@ -244,7 +244,7 @@ Therefore, `tinman submit` outsources signing of those transactions to the
   tinman txgen -c txgen.conf \
 ) | \
 tinman keysub | \
-tinman submit -t http://127.0.0.1:9990 --signer steem/programs/util/sign_transaction -f fail.json
+tinman submit -t http://127.0.0.1:9990 --signer hive/programs/util/sign_transaction -f fail.json
 ```
 
 # Other Modules
@@ -263,7 +263,7 @@ Copy `durables.conf.example` to `durables.conf`, add any desired objects, and ru
   tinman durables -c durables.conf \
 ) | \
 tinman keysub | \
-tinman submit -t http://127.0.0.1:9990 --signer steem/programs/util/sign_transaction -f die
+tinman submit -t http://127.0.0.1:9990 --signer hive/programs/util/sign_transaction -f die
 ```
 
 ## Warden
@@ -335,7 +335,7 @@ Therefore we may add the witness definitions and private keys to the witness con
 
 ```bash
 i=0 ; while [ $i -lt 21 ] ; do echo witness = '"'init-$i'"' >> testnet_datadir/config.ini ; let i=i+1 ; done
-steem/programs/util/get_dev_key xxx- block-init-0:21 | cut -d '"' -f 4 | sed 's/^/private-key = /' >> testnet_datadir/config.ini
+hive/programs/util/get_dev_key xxx- block-init-0:21 | cut -d '"' -f 4 | sed 's/^/private-key = /' >> testnet_datadir/config.ini
 ```
 
 Witness duties may of course be split among multiple nodes if desired, simply put the

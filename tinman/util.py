@@ -96,7 +96,7 @@ def iterate_operations_from(steemd, is_appbase, min_block_number, max_block_numb
     Example usage:
 
     >>> iterate_operations_from(steemd, True, 1102, 1103, set())
-    ['pow', OrderedDict([('worker_account', 'steemit11'), ('block_id', '0000044df0f062c0504a8e37288a371ada63a1c7'), ('nonce', 33097), ('work', OrderedDict([('worker', 'STM65wH1LZ7BfSHcK69SShnqCAH5xdoSZpGkUjmzHJ5GCuxEK9V5G'), ('input', '45a3824498b87e41129f6fef17be276af6ff87d1e859128f28aaa9c08208871d'), ('signature', '1f93a52c4f794803b2563845b05b485e3e5f4c075ddac8ea8cffb988a1ffcdd1055590a3d5206a3be83cab1ea548fc52889d43bdbd7b74d62f87fb8e2166145a5d'), ('work', '00003e554a58830e7e01669796f40d1ce85c7eb979e376cb49e83319c2688c7e')])), ('props', OrderedDict([('account_creation_fee', '100.000 STEEM'), ('maximum_block_size', 131072), ('sbd_interest_rate', 1000)]))])]
+    ['pow', OrderedDict([('worker_account', 'steemit11'), ('block_id', '0000044df0f062c0504a8e37288a371ada63a1c7'), ('nonce', 33097), ('work', OrderedDict([('worker', 'STM65wH1LZ7BfSHcK69SShnqCAH5xdoSZpGkUjmzHJ5GCuxEK9V5G'), ('input', '45a3824498b87e41129f6fef17be276af6ff87d1e859128f28aaa9c08208871d'), ('signature', '1f93a52c4f794803b2563845b05b485e3e5f4c075ddac8ea8cffb988a1ffcdd1055590a3d5206a3be83cab1ea548fc52889d43bdbd7b74d62f87fb8e2166145a5d'), ('work', '00003e554a58830e7e01669796f40d1ce85c7eb979e376cb49e83319c2688c7e')])), ('props', OrderedDict([('account_creation_fee', '100.000 HIVE'), ('maximum_block_size', 131072), ('sbd_interest_rate', 1000)]))])]
     """
     assert isinstance(steemd, SteemInterface)
     assert isinstance(is_appbase, bool)

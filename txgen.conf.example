@@ -1,11 +1,11 @@
 {
  "transactions_per_block" : 40,
- "steem_block_interval" : 3,
+ "hive_block_interval" : 3,
  "num_blocks_to_clear_witness_round" : 21,
  "transaction_witness_setup_pad" : 100,
- "steem_max_authority_membership" : 10,
- "steem_address_prefix" : "TST",
- "steem_init_miner_name" : "initminer",
+ "hive_max_authority_membership" : 10,
+ "hive_address_prefix" : "TST",
+ "hive_init_miner_name" : "initminer",
 
  "snapshot_file" : "snapshot.json",
  "backfill_file" : "backfill.actions",
@@ -54,17 +54,17 @@
    "vesting" : {"amount" : "1000000", "precision" : 3, "nai" : "@@000000021"}
   },
 
-  "STEEM_MINER_ACCOUNT" :
+  "HIVE_MINER_ACCOUNT" :
   {
    "name" : "miners"
   },
 
-  "STEEM_NULL_ACCOUNT" :
+  "HIVE_NULL_ACCOUNT" :
   {
    "name" : "null"
   },
 
-  "STEEM_TEMP_ACCOUNT" :
+  "HIVE_TEMP_ACCOUNT" :
   {
    "name" : "temp"
   }
