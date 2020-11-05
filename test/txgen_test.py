@@ -226,7 +226,7 @@ class TxgenTest(unittest.TestCase):
             
             if cmd == "metadata":
                 if not args.get("post_backfill"):
-                    self.assertEqual(args["txgen:semver"], "0.2")
+                    self.assertEqual(args["txgen:semver"], "0.3")
                     self.assertEqual(args["txgen:transactions_per_block"], 40)
                     self.assertIsNotNone(args["epoch:created"])
                     self.assertEqual(args["actions:count"], 73)

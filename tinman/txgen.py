@@ -195,7 +195,7 @@ def get_proportions(account_stats, conf, silent=True):
     
     with open(conf["snapshot_file"], "rb") as f:
         for prefix, event, value in ijson.parse(f):
-            if prefix == "dynamic_global_properties.total_vesting_fund_steem.amount":
+            if prefix == "dynamic_global_properties.total_vesting_fund_hive.amount":
                 total_vesting_hive = int(value)
                 break
     

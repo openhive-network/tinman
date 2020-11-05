@@ -4,7 +4,7 @@
       "snapshot:origin_api":"http://calculon.local"
    },
    "dynamic_global_properties":{
-      "total_vesting_fund_steem":{
+      "total_vesting_fund_hive":{
          "amount":"196793227573",
          "nai":"@@000000021",
          "precision":3
@@ -92,12 +92,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -107,7 +107,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -117,23 +117,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"4931480",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-06T00:00:51",
-         "sbd_seconds":"38421621615378",
-         "sbd_seconds_last_update":"2018-09-26T00:12:54",
+         "hbd_last_interest_payment":"2018-09-06T00:00:51",
+         "hbd_seconds":"38421621615378",
+         "hbd_seconds_last_update":"2018-09-26T00:12:54",
          "to_withdraw":"76724740938075",
          "vesting_shares":{
             "amount":"82084887877",
@@ -234,12 +234,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -249,7 +249,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -259,23 +259,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"930",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-19T04:46:33",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-08-19T04:46:33",
+         "hbd_last_interest_payment":"2018-08-19T04:46:33",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-08-19T04:46:33",
          "to_withdraw":"8171000000000000",
          "vesting_shares":{
             "amount":"659751021",
@@ -376,12 +376,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -391,7 +391,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -401,23 +401,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"3725",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-28T18:14:06",
-         "sbd_seconds":"973177278",
-         "sbd_seconds_last_update":"2018-08-31T18:50:42",
+         "hbd_last_interest_payment":"2018-08-28T18:14:06",
+         "hbd_seconds":"973177278",
+         "hbd_seconds_last_update":"2018-08-31T18:50:42",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"1023055299",
@@ -518,12 +518,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -533,7 +533,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -543,23 +543,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"1970-01-01T00:00:00",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"203140325",
@@ -660,12 +660,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -675,7 +675,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -685,23 +685,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"2018-06-13T23:39:15",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"2018-06-13T23:39:15",
+         "savings_hbd_last_interest_payment":"2018-06-13T23:39:15",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"2018-06-13T23:39:15",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"10076591799",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-23T08:48:06",
-         "sbd_seconds":"1963301527784049",
-         "sbd_seconds_last_update":"2018-09-25T14:55:27",
+         "hbd_last_interest_payment":"2018-09-23T08:48:06",
+         "hbd_seconds":"1963301527784049",
+         "hbd_seconds_last_update":"2018-09-25T14:55:27",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"8546751875750",
@@ -802,12 +802,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"85159",
             "nai":"@@000000021",
             "precision":3
@@ -817,7 +817,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"138937",
             "nai":"@@000000021",
             "precision":3
@@ -827,23 +827,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"15022",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"2018-07-10T04:36:54",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"2018-07-10T04:36:54",
+         "savings_hbd_last_interest_payment":"2018-07-10T04:36:54",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"2018-07-10T04:36:54",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"58635023",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-23T00:59:27",
-         "sbd_seconds":"15878269175853",
-         "sbd_seconds_last_update":"2018-09-26T01:14:18",
+         "hbd_last_interest_payment":"2018-09-23T00:59:27",
+         "hbd_seconds":"15878269175853",
+         "hbd_seconds_last_update":"2018-09-26T01:14:18",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"9649830728296540",
@@ -956,12 +956,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"217306",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"1164",
             "nai":"@@000000021",
             "precision":3
@@ -971,7 +971,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"478868",
             "nai":"@@000000021",
             "precision":3
@@ -981,23 +981,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"428141",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-12T15:21:42",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-09-12T15:21:42",
+         "hbd_last_interest_payment":"2018-09-12T15:21:42",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-09-12T15:21:42",
          "to_withdraw":"604746709219120",
          "vesting_shares":{
             "amount":"58822357508745",
@@ -1098,12 +1098,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"344",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1113,7 +1113,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"331",
             "nai":"@@000000021",
             "precision":3
@@ -1123,23 +1123,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"98633",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-07-11T02:11:54",
-         "sbd_seconds":"141376550208",
-         "sbd_seconds_last_update":"2018-07-27T16:22:33",
+         "hbd_last_interest_payment":"2018-07-11T02:11:54",
+         "hbd_seconds":"141376550208",
+         "hbd_seconds_last_update":"2018-07-27T16:22:33",
          "to_withdraw":"5191908265050262",
          "vesting_shares":{
             "amount":"212148717653",
@@ -1240,12 +1240,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1255,7 +1255,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1265,23 +1265,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"124541491",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-25T09:19:27",
-         "sbd_seconds":"327518130816",
-         "sbd_seconds_last_update":"2018-09-25T10:03:15",
+         "hbd_last_interest_payment":"2018-09-25T09:19:27",
+         "hbd_seconds":"327518130816",
+         "hbd_seconds_last_update":"2018-09-25T10:03:15",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"5315040746809",
@@ -1382,12 +1382,12 @@
          },
          "recovery_account":"",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1397,7 +1397,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1407,23 +1407,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"1970-01-01T00:00:00",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"12411284079",
@@ -1524,12 +1524,12 @@
          },
          "recovery_account":"enjoy-every-day",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1539,7 +1539,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1549,23 +1549,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"4",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-03T14:48:36",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-08-03T14:48:36",
+         "hbd_last_interest_payment":"2018-08-03T14:48:36",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-08-03T14:48:36",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"4079848926560",
@@ -1666,12 +1666,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1681,7 +1681,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1691,23 +1691,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"453",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-19T04:52:03",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-08-19T04:52:03",
+         "hbd_last_interest_payment":"2018-08-19T04:52:03",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-08-19T04:52:03",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"445256469401562",
@@ -1808,12 +1808,12 @@
          },
          "recovery_account":"mavicpro",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1823,7 +1823,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1833,23 +1833,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"1970-01-01T00:00:00",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"202431338",
@@ -1950,12 +1950,12 @@
          },
          "recovery_account":"anonsteem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1965,7 +1965,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -1975,23 +1975,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"103",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-06-02T10:41:00",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-06-02T10:41:00",
+         "hbd_last_interest_payment":"2018-06-02T10:41:00",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-06-02T10:41:00",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"12360924266",
@@ -2092,12 +2092,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"1063532",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"6001",
             "nai":"@@000000021",
             "precision":3
@@ -2107,7 +2107,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"4186572",
             "nai":"@@000000021",
             "precision":3
@@ -2117,23 +2117,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"1249949",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"2017-01-01T19:19:27",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"2017-01-01T19:19:27",
+         "savings_hbd_last_interest_payment":"2017-01-01T19:19:27",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"2017-01-01T19:19:27",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"5754660",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-19T10:26:15",
-         "sbd_seconds":"203801248485",
-         "sbd_seconds_last_update":"2018-09-19T20:16:30",
+         "hbd_last_interest_payment":"2018-09-19T10:26:15",
+         "hbd_seconds":"203801248485",
+         "hbd_seconds_last_update":"2018-09-19T20:16:30",
          "to_withdraw":"3656023893771860",
          "vesting_shares":{
             "amount":"3688117088905014",
@@ -2234,12 +2234,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2249,7 +2249,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2259,23 +2259,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"128768644",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-29T10:19:45",
-         "sbd_seconds":"310139068136544",
-         "sbd_seconds_last_update":"2018-09-25T08:36:00",
+         "hbd_last_interest_payment":"2018-08-29T10:19:45",
+         "hbd_seconds":"310139068136544",
+         "hbd_seconds_last_update":"2018-09-25T08:36:00",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"3059486764",
@@ -2380,12 +2380,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2395,7 +2395,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2405,23 +2405,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"435522088",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-04T07:06:03",
-         "sbd_seconds":"567298087699263",
-         "sbd_seconds_last_update":"2018-09-19T08:57:15",
+         "hbd_last_interest_payment":"2018-09-04T07:06:03",
+         "hbd_seconds":"567298087699263",
+         "hbd_seconds_last_update":"2018-09-19T08:57:15",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"4404577000000",
@@ -2534,12 +2534,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2549,7 +2549,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2559,23 +2559,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"8582545",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-09-11T20:05:06",
-         "sbd_seconds":"5934494456784",
-         "sbd_seconds_last_update":"2018-09-19T20:09:27",
+         "hbd_last_interest_payment":"2018-09-11T20:05:06",
+         "hbd_seconds":"5934494456784",
+         "hbd_seconds_last_update":"2018-09-19T20:09:27",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"90039851836689703",
@@ -2688,12 +2688,12 @@
          },
          "recovery_account":"steem",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2703,7 +2703,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2713,23 +2713,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"4992073",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-19T03:51:30",
-         "sbd_seconds":"10213554668760",
-         "sbd_seconds_last_update":"2018-09-11T20:10:45",
+         "hbd_last_interest_payment":"2018-08-19T03:51:30",
+         "hbd_seconds":"10213554668760",
+         "hbd_seconds_last_update":"2018-09-11T20:10:45",
          "to_withdraw":"250125445711876",
          "vesting_shares":{
             "amount":"20533048933828",
@@ -2830,12 +2830,12 @@
          },
          "recovery_account":"upbit-s-exchange",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2845,7 +2845,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -2855,23 +2855,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"1970-01-01T00:00:00",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"1970-01-01T00:00:00",
+         "savings_hbd_last_interest_payment":"1970-01-01T00:00:00",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"1970-01-01T00:00:00",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"437308268",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-08-25T08:48:15",
-         "sbd_seconds":"1007406639205854",
-         "sbd_seconds_last_update":"2018-09-17T11:43:06",
+         "hbd_last_interest_payment":"2018-08-25T08:48:15",
+         "hbd_seconds":"1007406639205854",
+         "hbd_seconds_last_update":"2018-09-17T11:43:06",
          "to_withdraw":0,
          "vesting_shares":{
             "amount":"2033434440465",
@@ -3125,7 +3125,7 @@
                   1
                ],
                [
-                  "STM7hYhvDdWbFRB3L6jgj13jFEvtwdsbdCJnP5pxh6og2YqLH7Gu6",
+                  "STM7hYhvDdWbFRB3L6jgj13jFEvtwdhbdCJnP5pxh6og2YqLH7Gu6",
                   1
                ],
                [
@@ -3310,12 +3310,12 @@
          },
          "recovery_account":"fabien",
          "reset_account":"null",
-         "reward_sbd_balance":{
+         "reward_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "reward_steem_balance":{
+         "reward_hive_balance":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -3325,7 +3325,7 @@
             "nai":"@@000000037",
             "precision":6
          },
-         "reward_vesting_steem":{
+         "reward_vesting_hive":{
             "amount":"0",
             "nai":"@@000000021",
             "precision":3
@@ -3335,23 +3335,23 @@
             "nai":"@@000000021",
             "precision":3
          },
-         "savings_sbd_balance":{
+         "savings_hbd_balance":{
             "amount":"0",
             "nai":"@@000000013",
             "precision":3
          },
-         "savings_sbd_last_interest_payment":"2017-12-08T04:54:03",
-         "savings_sbd_seconds":"0",
-         "savings_sbd_seconds_last_update":"2017-12-08T04:54:03",
+         "savings_hbd_last_interest_payment":"2017-12-08T04:54:03",
+         "savings_hbd_seconds":"0",
+         "savings_hbd_seconds_last_update":"2017-12-08T04:54:03",
          "savings_withdraw_requests":0,
-         "sbd_balance":{
+         "hbd_balance":{
             "amount":"2657",
             "nai":"@@000000013",
             "precision":3
          },
-         "sbd_last_interest_payment":"2018-07-28T13:47:33",
-         "sbd_seconds":"0",
-         "sbd_seconds_last_update":"2018-07-28T13:47:33",
+         "hbd_last_interest_payment":"2018-07-28T13:47:33",
+         "hbd_seconds":"0",
+         "hbd_seconds_last_update":"2018-07-28T13:47:33",
          "to_withdraw":2435811079,
          "vesting_shares":{
             "amount":"4885559226",
