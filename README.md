@@ -1,4 +1,3 @@
-
 # Overview
 
 The `tinman` set of utilities is a set of scripts to create a testnet.
@@ -122,7 +121,7 @@ $ curl -s --data '{"jsonrpc":"2.0", "method":"condenser_api.get_account_count", 
 
 More detail about general usage:
 
-* [Mainnet steemd](#mainnet-steemde)
+* [Mainnet hived](#mainnet-hived)
 * [Taking a snapshot](#taking-a-snapshot)
 * [Generating actions](#generating-actions)
 * [Keys substitution](#keys-substitution)
@@ -136,11 +135,11 @@ More detail about general usage:
 * [Running testnet witness node(s)](#running-testnet-witness-node-s-)
 * [Tests](#tests)
 
-## Mainnet steemd
+## Mainnet hived
 
-First, we set up a `steemd` for the main network.  This `steemd` must be the following characteristics:
+First, we set up a `hived` for the main network.  This `hived` must be the following characteristics:
 
-- The `steemd` must be `appbase` version
+- The `hived` must be `appbase` version
 - The `chain`, `webserver` and `database_api` plugins must be enabled
 - The `webserver-http-endpoint` assumed by the following examples is `127.0.0.1:8090`
 - If a snapshot at a well-defined single point in time is desired, no seed nodes should be used, so it does not connect to the p2p network
@@ -207,7 +206,7 @@ to `tinman keysub`.
 
 ### Command-line key generator
 
-The `get_dev_key` program provided with `steemd` derives
+The `get_dev_key` program provided with `hived` derives
 keys using the same algorithm as `tinman keysub`.
 
 ## Running testnet fastgen node
@@ -224,7 +223,7 @@ to the fastgen node over p2p, get blocks, and begin normal block production.
 
 The fastgen node needs the following:
 
-- The `steemd` must be `appbase` version
+- The `hived` must be `appbase` version
 - The testnet `blockchain` directory should be empty (try `rm -Rf testnet_datadir/blockchain`)
 - The following plugins should be enabled:  `chain p2p webserver debug_node database_api network_broadcast_api debug_node_api block_api`
 - The `webserver-http-endpoint` assumed by the following examples is `127.0.0.1:9990`
@@ -234,7 +233,7 @@ The fastgen node needs the following:
 On the testnet, some serializations are different from the main network, and
 [they are not handled properly by steem_python](https://github.com/steemit/steem-python/issues/89).
 Therefore, `tinman submit` outsources signing of those transactions to the
-`sign_transaction` binary included with `steemd`.
+`sign_transaction` binary included with `hived`.
 
 ### Pipelining transactions to testnet
 
