@@ -6,12 +6,12 @@ from tinman import txgen
 
 FULL_CONF = {
     "transactions_per_block" : 40,
-    "steem_block_interval" : 3,
+    "hive_block_interval" : 3,
     "num_blocks_to_clear_witness_round" : 21,
     "transaction_witness_setup_pad" : 100,
-    "steem_max_authority_membership" : 10,
-    "steem_address_prefix" : "TST",
-    "steem_init_miner_name" : 'initminer',
+    "hive_max_authority_membership" : 10,
+    "hive_address_prefix" : "TST",
+    "hive_init_miner_name" : 'initminer',
     "snapshot_file" : "/tmp/test-snapshot.json",
     "backfill_file" : "/tmp/test-backfill.actions",
     "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
@@ -42,12 +42,12 @@ FULL_CONF = {
             "creator" : "initminer",
             "vesting" : {"amount" : "1000000", "precision" : 3, "nai" : "@@000000021"}
         },
-            "STEEM_MINER_ACCOUNT" : {"name" : "mners"},
-            "STEEM_NULL_ACCOUNT" : {"name" : "null"},
-            "STEEM_TEMP_ACCOUNT" : {"name" : "temp"}
+            "HIVE_MINER_ACCOUNT" : {"name" : "mners"},
+            "HIVE_NULL_ACCOUNT" : {"name" : "null"},
+            "HIVE_TEMP_ACCOUNT" : {"name" : "temp"}
         }
     }
-    
+
 class TxgenTest(unittest.TestCase):
 
     def test_create_system_accounts_bad_args(self):
@@ -97,7 +97,7 @@ class TxgenTest(unittest.TestCase):
             for op in witness["operations"]:
                 self.assertEqual(op["type"], "witness_update_operation")
                 value = op["value"]
-                self.assertEqual(value["url"], "https://steemit.com/")
+                self.assertEqual(value["url"], "https://hive.blog/")
                 self.assertEqual(value["props"], {})
                 self.assertEqual(value["fee"], {"amount" : "0", "precision" : 3, "nai" : "@@000000021"})
 
@@ -146,7 +146,7 @@ class TxgenTest(unittest.TestCase):
         
         self.assertEqual(account_stats["account_names"], expected_account_names)
         self.assertEqual(account_stats["total_vests"], 103927120221962824)
-        self.assertEqual(account_stats["total_steem"], 60859732440)
+        self.assertEqual(account_stats["total_hive"], 60859732440)
 
     def test_get_proportions(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
@@ -161,7 +161,7 @@ class TxgenTest(unittest.TestCase):
         
         self.assertEqual(proportions["min_vesting_per_account"], 1)
         self.assertEqual(proportions["vest_conversion_factor"], 1469860)
-        self.assertEqual(proportions["steem_conversion_factor"], 776237928593)
+        self.assertEqual(proportions["hive_conversion_factor"], 776237928593)
 
     def test_create_accounts(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
@@ -210,12 +210,12 @@ class TxgenTest(unittest.TestCase):
             for op in account["operations"]:
                 value = op["value"]
                 self.assertIn(["tnman", 1], value["owner"]["account_auths"])
-                self.assertLessEqual(len(value["owner"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["active"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["posting"]["account_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["owner"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["active"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
-                self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.STEEM_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["owner"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["active"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["posting"]["account_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["owner"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["active"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
             
     def test_build_actions(self):
         shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
@@ -226,7 +226,7 @@ class TxgenTest(unittest.TestCase):
             
             if cmd == "metadata":
                 if not args.get("post_backfill"):
-                    self.assertEqual(args["txgen:semver"], "0.2")
+                    self.assertEqual(args["txgen:semver"], "0.3")
                     self.assertEqual(args["txgen:transactions_per_block"], 40)
                     self.assertIsNotNone(args["epoch:created"])
                     self.assertEqual(args["actions:count"], 73)
@@ -262,3 +262,24 @@ class TxgenTest(unittest.TestCase):
                 cmd, args = action
         
         self.assertIn('Unsupported snapshot', str(ctx.exception))
+
+    def test_build_actions_no_main_accounts_snapshot(self):
+        system_account_names = ["init-0", "init-1", "init-2", "init-3", "init-4",
+            "init-5", "init-6", "init-7", "init-8", "init-9", "init-10", "init-11",
+            "init-12", "init-13", "init-14", "init-15", "init-16", "init-17",
+            "init-18", "init-19", "init-20", "elect-0", "elect-1", "elect-2",
+            "elect-3", "elect-4", "elect-5", "elect-6", "elect-7", "elect-8",
+            "elect-9", "tnman", "porter"]
+        
+        shutil.copyfile("test-no-main-accounts-snapshot.json", "/tmp/test-no-main-accounts-snapshot.json")
+        conf = FULL_CONF.copy()
+        conf["snapshot_file"] = "/tmp/test-no-main-accounts-snapshot.json"
+        
+        for action in txgen.build_actions(conf):
+            cmd, args = action
+            
+            if cmd == "submit_transaction":
+                for type, value in args["tx"]["operations"]:
+                    if type == 'account_create_operation':
+                        new_account_name = value['new_account_name']
+                        self.assertIn(new_account_name, system_account_names)

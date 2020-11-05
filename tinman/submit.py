@@ -19,7 +19,7 @@ from . import util
 
 ACTIONS_MAJOR_VERSION_SUPPORTED = 0
 ACTIONS_MINOR_VERSION_SUPPORTED = 2
-STEEM_BLOCK_INTERVAL = 3
+HIVE_BLOCK_INTERVAL = 3
 
 class TransactionSigner(object):
     def __init__(self, sign_transaction_exe=None, chain_id=None):
@@ -114,7 +114,7 @@ def generate_blocks(steemd, args, cached_dgpo=None, now=None, produce_realtime=F
 
 def main(argv):
 
-    parser = argparse.ArgumentParser(prog=argv[0], description="Submit transactions to Steem")
+    parser = argparse.ArgumentParser(prog=argv[0], description="Submit transactions to Hive")
     parser.add_argument("-t", "--testserver", default="http://127.0.0.1:8190", dest="testserver", metavar="URL", help="Specify testnet steemd server with debug enabled")
     parser.add_argument("--signer", default="sign_transaction", dest="sign_transaction_exe", metavar="FILE", help="Specify path to sign_transaction tool")
     parser.add_argument("-i", "--input-file", default="-", dest="input_file", metavar="FILE", help="File to read transactions from")
@@ -174,9 +174,9 @@ def main(argv):
                     dgpo = cached_dgpo.get()
                     now = datetime.datetime.utcnow()
                     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
-                    join_head = int((now - head_block_time).total_seconds()) // STEEM_BLOCK_INTERVAL
+                    join_head = int((now - head_block_time).total_seconds()) // HIVE_BLOCK_INTERVAL
                     
-                    if join_head > STEEM_BLOCK_INTERVAL:
+                    if join_head > HIVE_BLOCK_INTERVAL:
                         generate_blocks(steemd, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                         cached_dgpo.reset()
                 else:

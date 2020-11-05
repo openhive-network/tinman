@@ -24,18 +24,18 @@ from . import util
 
 SNAPSHOT_MAJOR_VERSION_SUPPORTED = 0
 SNAPSHOT_MINOR_VERSION_SUPPORTED = 2
-STEEM_GENESIS_TIMESTAMP = 1451606400
-STEEM_BLOCK_INTERVAL = 3
+HIVE_GENESIS_TIMESTAMP = 1451606400
+HIVE_BLOCK_INTERVAL = 3
 NUM_BLOCKS_TO_CLEAR_WITNESS_ROUND = 21
 TRANSACTION_WITNESS_SETUP_PAD = 100
-STEEM_MAX_AUTHORITY_MEMBERSHIP = 10
+HIVE_MAX_AUTHORITY_MEMBERSHIP = 10
 DENOM = 10**12        # we need stupidly high precision because VESTS
-STEEM_BLOCKS_PER_DAY = 28800
-STEEM_ADDRESS_PREFIX = "TST"
-STEEM_INIT_MINER_NAME = "initminer"
+HIVE_BLOCKS_PER_DAY = 28800
+HIVE_ADDRESS_PREFIX = "TST"
+HIVE_INIT_MINER_NAME = "initminer"
 
 def create_system_accounts(conf, keydb, name):
-    steem_init_miner_name = conf.get("steem_init_miner_name", STEEM_INIT_MINER_NAME)
+    hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
     desc = conf["accounts"][name]
     for index in range(desc.get("count", 1)):
         name = desc["name"].format(index=index)
@@ -49,7 +49,7 @@ def create_system_accounts(conf, keydb, name):
             "memo_key" : keydb.get_pubkey(name, "memo"),
             "json_metadata" : "",
            }}, {"type" : "transfer_to_vesting_operation", "value" : {
-            "from" : steem_init_miner_name,
+            "from" : hive_init_miner_name,
             "to" : name,
             "amount" : desc["vesting"],
            }}],
@@ -94,7 +94,7 @@ def update_witnesses(conf, keydb, name):
         block_signing_key = keydb.get_pubkey(name, 'block')
         yield {"operations" : [{"type" : "witness_update_operation", "value" : {
             "owner" : name,
-            "url" : "https://steemit.com/",
+            "url" : "https://hive.blog/",
             "block_signing_key" : block_signing_key,
             "props" : {},
             "fee" : amount(0),
@@ -110,28 +110,28 @@ def build_setup_transactions(account_stats, conf, keydb, silent=True):
     yield from port_snapshot(account_stats, conf, keydb, silent)
 
 def build_initminer_tx(conf, keydb):
-    steem_init_miner_name = conf.get("steem_init_miner_name", STEEM_INIT_MINER_NAME)
+    hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
     
     return {"operations" : [
      {"type" : "account_update_operation",
       "value" : {
-       "account" : steem_init_miner_name,
-       "owner" : keydb.get_authority(steem_init_miner_name, "owner"),
-       "active" : keydb.get_authority(steem_init_miner_name, "active"),
-       "posting" : keydb.get_authority(steem_init_miner_name, "posting"),
-       "memo_key" : keydb.get_pubkey(steem_init_miner_name, "memo"),
+       "account" : hive_init_miner_name,
+       "owner" : keydb.get_authority(hive_init_miner_name, "owner"),
+       "active" : keydb.get_authority(hive_init_miner_name, "active"),
+       "posting" : keydb.get_authority(hive_init_miner_name, "posting"),
+       "memo_key" : keydb.get_pubkey(hive_init_miner_name, "memo"),
        "json_metadata" : "",
       }},
      {"type" : "transfer_to_vesting_operation",
       "value" : {
-       "from" : steem_init_miner_name,
-       "to" : steem_init_miner_name,
-       "amount" : conf["accounts"][steem_init_miner_name]["vesting"],
+       "from" : hive_init_miner_name,
+       "to" : hive_init_miner_name,
+       "amount" : conf["accounts"][hive_init_miner_name]["vesting"],
       }},
      {"type" : "account_witness_vote_operation",
       "value" : {
-       "account" : steem_init_miner_name,
-       "witness" : steem_init_miner_name,
+       "account" : hive_init_miner_name,
+       "witness" : hive_init_miner_name,
        "approve" : True,
       }},
     ],
@@ -153,7 +153,7 @@ def get_system_account_names(conf):
 def get_account_stats(conf, silent=True):
     system_account_names = set(get_system_account_names(conf))
     vests = 0
-    total_steem = 0
+    total_hive = 0
     account_names = set()
     
     if not silent and not YAJL2_CFFI_AVAILABLE:
@@ -166,7 +166,7 @@ def get_account_stats(conf, silent=True):
             
             account_names.add(acc["name"])
             vests += satoshis(acc["vesting_shares"])
-            total_steem += satoshis(acc["balance"])
+            total_hive += satoshis(acc["balance"])
 
             if not silent:
                 n = len(account_names)
@@ -176,27 +176,27 @@ def get_account_stats(conf, silent=True):
     return {
       "account_names": account_names,
       "total_vests": vests,
-      "total_steem": total_steem
+      "total_hive": total_hive
     }
 
 def get_proportions(account_stats, conf, silent=True):
     """
-    We have a fixed amount of STEEM to give out, specified by total_port_balance
+    We have a fixed amount of HIVE to give out, specified by total_port_balance
     This needs to be given out subject to the following constraints:
-    - The ratio of vesting : liquid STEEM is the same on testnet,
+    - The ratio of vesting : liquid HIVE is the same on testnet,
     - Everyone's testnet balance is proportional to their mainnet balance
     - Everyone has at least min_vesting_per_account
     """
     
     total_vests = account_stats["total_vests"]
-    total_steem = account_stats["total_steem"]
+    total_hive = account_stats["total_hive"]
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
     
     with open(conf["snapshot_file"], "rb") as f:
         for prefix, event, value in ijson.parse(f):
-            if prefix == "dynamic_global_properties.total_vesting_fund_steem.amount":
-                total_vesting_steem = int(value)
+            if prefix == "dynamic_global_properties.total_vesting_fund_hive.amount":
+                total_vesting_hive = int(value)
                 break
     
     min_vesting_per_account = satoshis(conf["min_vesting_per_account"])
@@ -204,34 +204,42 @@ def get_proportions(account_stats, conf, silent=True):
     avail_port_balance = total_port_balance - min_vesting_per_account * num_accounts
     if avail_port_balance < 0:
         raise RuntimeError("Increase total_port_balance or decrease min_vesting_per_account")
-    total_port_vesting = (avail_port_balance * total_vesting_steem) // (total_steem + total_vesting_steem)
-    total_port_liquid = (avail_port_balance * total_steem) // (total_steem + total_vesting_steem)
-    vest_conversion_factor  = (DENOM * total_port_vesting) // total_vests
-    steem_conversion_factor = (DENOM * total_port_liquid ) // total_steem
+    total_port_vesting = (avail_port_balance * total_vesting_hive) // (total_hive + total_vesting_hive)
+    total_port_liquid = (avail_port_balance * total_hive) // (total_hive + total_vesting_hive)
+    
+    if total_vests == 0:
+        vest_conversion_factor = 1
+    else:
+        vest_conversion_factor  = (DENOM * total_port_vesting) // total_vests
+        
+    if total_hive == 0:
+        hive_conversion_factor = 1
+    else:
+        hive_conversion_factor = (DENOM * total_port_liquid ) // total_hive
     
     if not silent:
         print("total_vests:", total_vests)
-        print("total_steem:", total_steem)
-        print("total_vesting_steem:", total_vesting_steem)
+        print("total_hive:", total_hive)
+        print("total_vesting_hive:", total_vesting_hive)
         print("total_port_balance:", total_port_balance)
         print("total_port_vesting:", total_port_vesting)
         print("total_port_liquid:", total_port_liquid)
         print("vest_conversion_factor:", vest_conversion_factor)
-        print("steem_conversion_factor:", steem_conversion_factor)
+        print("hive_conversion_factor:", hive_conversion_factor)
     
     return {
       "min_vesting_per_account": min_vesting_per_account,
       "vest_conversion_factor": vest_conversion_factor,
-      "steem_conversion_factor": steem_conversion_factor
+      "hive_conversion_factor": hive_conversion_factor
     }
 
 def create_accounts(account_stats, conf, keydb, silent=True):
-    steem_address_prefix = conf.get("steem_address_prefix", STEEM_ADDRESS_PREFIX)
+    hive_address_prefix = conf.get("hive_address_prefix", HIVE_ADDRESS_PREFIX)
     system_account_names = set(get_system_account_names(conf))
     proportions = get_proportions(account_stats, conf, silent)
     min_vesting_per_account = proportions["min_vesting_per_account"]
     vest_conversion_factor = proportions["vest_conversion_factor"]
-    steem_conversion_factor = proportions["steem_conversion_factor"]
+    hive_conversion_factor = proportions["hive_conversion_factor"]
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
     porter = conf["accounts"]["porter"]["name"]
@@ -245,7 +253,7 @@ def create_accounts(account_stats, conf, keydb, silent=True):
                 continue
             
             vesting_amount = (satoshis(a["vesting_shares"]) * vest_conversion_factor) // DENOM
-            transfer_amount = (satoshis(a["balance"]) * steem_conversion_factor) // DENOM
+            transfer_amount = (satoshis(a["balance"]) * hive_conversion_factor) // DENOM
             name = a["name"]
             vesting_amount = max(vesting_amount, min_vesting_per_account)
             
@@ -256,7 +264,7 @@ def create_accounts(account_stats, conf, keydb, silent=True):
               "owner" : create_auth,
               "active" : create_auth,
               "posting" : create_auth,
-              "memo_key" : steem_address_prefix + a["memo_key"][3:],
+              "memo_key" : hive_address_prefix + a["memo_key"][3:],
               "json_metadata" : "",
              }}, {"type" : "transfer_to_vesting_operation", "value" : {
               "from" : porter,
@@ -284,8 +292,8 @@ def create_accounts(account_stats, conf, keydb, silent=True):
         print("\t100.00%% complete")
 
 def update_accounts(account_stats, conf, keydb, silent=True):
-    steem_max_authority_membership = conf.get("steem_max_authority_membership", STEEM_MAX_AUTHORITY_MEMBERSHIP)
-    steem_address_prefix = conf.get("steem_address_prefix", STEEM_ADDRESS_PREFIX)
+    hive_max_authority_membership = conf.get("hive_max_authority_membership", HIVE_MAX_AUTHORITY_MEMBERSHIP)
+    hive_address_prefix = conf.get("hive_address_prefix", HIVE_ADDRESS_PREFIX)
     system_account_names = set(get_system_account_names(conf))
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
@@ -306,13 +314,13 @@ def update_accounts(account_stats, conf, keydb, silent=True):
             new_posting_auth = cur_posting_auth.copy()
             
             # filter to only include existing accounts
-            for aw in cur_owner_auth["account_auths"][:(steem_max_authority_membership - 1)]:
+            for aw in cur_owner_auth["account_auths"][:(hive_max_authority_membership - 1)]:
                 if (aw[0] not in account_names) or (aw[0] in system_account_names):
                     new_owner_auth["account_auths"].remove(aw)
-            for aw in cur_active_auth["account_auths"][:(steem_max_authority_membership - 1)]:
+            for aw in cur_active_auth["account_auths"][:(hive_max_authority_membership - 1)]:
                 if (aw[0] not in account_names) or (aw[0] in system_account_names):
                     new_active_auth["account_auths"].remove(aw)
-            for aw in cur_posting_auth["account_auths"][:(steem_max_authority_membership - 1)]:
+            for aw in cur_posting_auth["account_auths"][:(hive_max_authority_membership - 1)]:
                 if (aw[0] not in account_names) or (aw[0] in system_account_names):
                     new_posting_auth["account_auths"].remove(aw)
 
@@ -322,9 +330,9 @@ def update_accounts(account_stats, conf, keydb, silent=True):
             new_posting_auth["account_auths"].append([tnman, cur_posting_auth["weight_threshold"]])
             
             # substitute prefix for key_auths
-            new_owner_auth["key_auths"] = [[steem_address_prefix + k[3:], w] for k, w in new_owner_auth["key_auths"][:steem_max_authority_membership]]
-            new_active_auth["key_auths"] = [[steem_address_prefix + k[3:], w] for k, w in new_active_auth["key_auths"][:steem_max_authority_membership]]
-            new_posting_auth["key_auths"] = [[steem_address_prefix + k[3:], w] for k, w in new_posting_auth["key_auths"][:steem_max_authority_membership]]
+            new_owner_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_owner_auth["key_auths"][:hive_max_authority_membership]]
+            new_active_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_active_auth["key_auths"][:hive_max_authority_membership]]
+            new_posting_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_posting_auth["key_auths"][:hive_max_authority_membership]]
 
             ops = [{"type" : "account_update_operation", "value" : {
               "account" : a["name"],
@@ -348,17 +356,17 @@ def update_accounts(account_stats, conf, keydb, silent=True):
         print("\t100.00%% complete")
 
 def port_snapshot(account_stats, conf, keydb, silent=True):
-    steem_init_miner_name = conf.get("steem_init_miner_name", STEEM_INIT_MINER_NAME)
+    hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
     porter = conf["accounts"]["porter"]["name"]
 
     yield {"operations" : [
       {"type" : "transfer_operation",
-      "value" : {"from" : steem_init_miner_name,
+      "value" : {"from" : hive_init_miner_name,
        "to" : porter,
        "amount" : conf["total_port_balance"],
        "memo" : "Fund porting balances",
       }}],
-       "wif_sigs" : [keydb.get_privkey(steem_init_miner_name)]}
+       "wif_sigs" : [keydb.get_privkey(hive_init_miner_name)]}
 
     yield from create_accounts(account_stats, conf, keydb, silent)
     yield from update_accounts(account_stats, conf, keydb, silent)
@@ -373,10 +381,10 @@ def build_actions(conf, silent=True):
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
     transactions_per_block = conf["transactions_per_block"]
-    steem_block_interval = conf.get("steem_block_interval", STEEM_BLOCK_INTERVAL)
+    hive_block_interval = conf.get("hive_block_interval", HIVE_BLOCK_INTERVAL)
     transaction_witness_setup_pad = conf.get("transaction_witness_setup_pad", TRANSACTION_WITNESS_SETUP_PAD)
     
-    genesis_time = datetime.datetime.utcfromtimestamp(STEEM_GENESIS_TIMESTAMP)
+    genesis_time = datetime.datetime.utcfromtimestamp(HIVE_GENESIS_TIMESTAMP)
     
     # Three transactions per account (create, trasnfer_to_vesting, and update).
     predicted_transaction_count = num_accounts * 3
@@ -390,11 +398,11 @@ def build_actions(conf, silent=True):
     
     # Pad for update witnesses, vote witnesses, clear rounds, and transaction
     # setup processing time
-    predicted_block_count += transaction_witness_setup_pad + (predicted_transaction_setup_seconds // steem_block_interval)
+    predicted_block_count += transaction_witness_setup_pad + (predicted_transaction_setup_seconds // hive_block_interval)
     
     now = datetime.datetime.utcnow()
-    start_time = now - datetime.timedelta(seconds=predicted_block_count * steem_block_interval)
-    miss_blocks = int((start_time - genesis_time).total_seconds()) // steem_block_interval
+    start_time = now - datetime.timedelta(seconds=predicted_block_count * hive_block_interval)
+    miss_blocks = int((start_time - genesis_time).total_seconds()) // hive_block_interval
     miss_blocks = max(miss_blocks-1, 0)
     origin_api = None
     snapshot_head_block_num = None
@@ -443,7 +451,7 @@ def build_actions(conf, silent=True):
         if num_lines > 0:
             metadata["backfill_actions:count"] = num_lines
             metadata["actions:count"] += num_lines
-            miss_blocks -= max(num_lines // transactions_per_block, STEEM_BLOCKS_PER_DAY * 30)
+            miss_blocks -= max(num_lines // transactions_per_block, HIVE_BLOCKS_PER_DAY * 30)
             metadata["recommend:miss_blocks"] = miss_blocks
             has_backfill = True
     
@@ -470,10 +478,10 @@ def build_actions(conf, silent=True):
     return
 
 def log_config(conf, file):
-    keys = ["transactions_per_block", "steem_block_interval",
+    keys = ["transactions_per_block", "hive_block_interval",
       "num_blocks_to_clear_witness_round", "transaction_witness_setup_pad",
-      "steem_max_authority_membership", "steem_address_prefix",
-      "steem_init_miner_name"]
+      "hive_max_authority_membership", "hive_address_prefix",
+      "hive_init_miner_name"]
     
     print("Using config:", file, file=sys.stderr)
     
@@ -481,7 +489,7 @@ def log_config(conf, file):
         print(key, "=", conf.get(key, "<DEFAULT>"), file=sys.stderr)
     
 def main(argv):
-    parser = argparse.ArgumentParser(prog=argv[0], description="Generate transactions for Steem testnet")
+    parser = argparse.ArgumentParser(prog=argv[0], description="Generate transactions for Hive testnet")
     parser.add_argument("-c", "--conffile", default="txgen.conf", dest="conffile", metavar="FILE", help="Specify configuration file")
     parser.add_argument("-o", "--outfile", default="-", dest="outfile", metavar="FILE", help="Specify output file, - means stdout")
     args = parser.parse_args(argv[1:])

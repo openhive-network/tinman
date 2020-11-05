@@ -6,8 +6,8 @@ import os
 setup(name="tinman",
       version          = __import__('tinman').__version__,
       description      = "Testnet management scripts.",
-      url              = "https://github.com/steemit/tinman",
-      author           = "Steemit",
+      url              = "https://gitlab.syncad.com/hive/tinman",
+      author           = "Open Hive",
       packages         = ["tinman", "simple_steem_client"],
       install_requires = ["flask", "wtforms"],
       entry_points     = {"console_scripts" : [

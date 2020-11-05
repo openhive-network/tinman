@@ -9,7 +9,7 @@ import sys
 from . import __version__
 
 def main(argv):
-    parser = argparse.ArgumentParser(prog=argv[0], description="Generate transactions for Steem testnet")
+    parser = argparse.ArgumentParser(prog=argv[0], description="Generate transactions for Hive testnet")
     parser.add_argument("-i", "--infile", default="", dest="infile", metavar="FILE", help="Specify input snapshot, - means stdin")
     parser.add_argument("-o", "--outfile", default="-", dest="outfile", metavar="FILE", help="Specify output snapshot, - means stdout")
     args = parser.parse_args(argv[1:])
@@ -46,7 +46,7 @@ def main(argv):
         snapshot = {
           "metadata": {"snapshot:semver": __version__},
           "dynamic_global_properties": {
-            "total_vesting_fund_steem": {}
+            "total_vesting_fund_hive": {}
           },
           "accounts": [],
           "witnesses": []
@@ -59,14 +59,14 @@ def main(argv):
         
         print("Captured:", snapshot["metadata"])
         
-        fund = snapshot["dynamic_global_properties"]["total_vesting_fund_steem"]
+        fund = snapshot["dynamic_global_properties"]["total_vesting_fund_hive"]
         infile.seek(0)
         for prefix, event, value in ijson.parse(infile):
-            if prefix == "dynamic_global_properties.total_vesting_fund_steem.amount":
+            if prefix == "dynamic_global_properties.total_vesting_fund_hive.amount":
                 fund["amount"] = value
-            elif prefix == "dynamic_global_properties.total_vesting_fund_steem.precision":
+            elif prefix == "dynamic_global_properties.total_vesting_fund_hive.precision":
                 fund["precision"] = value
-            elif prefix == "dynamic_global_properties.total_vesting_fund_steem.nai":
+            elif prefix == "dynamic_global_properties.total_vesting_fund_hive.nai":
                 fund["nai"] = value
             if len(fund.keys()) > 2:
                 break
