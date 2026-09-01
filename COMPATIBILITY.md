@@ -100,6 +100,28 @@ on the standard pinned images. Current Hive also has a compile-time
 authority without dropping production members. Tinman does not require that
 custom build: it profiles and honors the limit reported by the target node.
 
+### Converter authority boundary
+
+The converter path was exercised separately on Calculon using the immutable
+Hive 1.29.0-rc1 mirrornet image:
+
+```text
+registry.gitlab.syncad.com/hive/hive/mirrornet:1.29.0-rc1@sha256:c95e1da993eecc0543c73ffeaff7caee60d035438b621d0d7c1c5b3940c83f3b
+```
+
+That image reported `HIVE_MAX_AUTHORITY_MEMBERSHIP=41`. An isolated synthetic
+snapshot gave one account 40 valid imported account authorities; Tinman added
+`tnman`, submitted the update, and the node stored all 41 members losslessly
+for owner, active, and posting authority.
+
+The published mirrornet image is not a drop-in fastgen matrix cell. It reports
+`IS_TEST_NET=false`, has a smaller genesis balance, cannot jump block 1 from
+genesis to wall-clock time without feed initialization, and needs explicit
+keys after Tinman's replacement witness schedule activates. The standard
+digest-pinned testnet images therefore remain the supported matrix; converter
+mode is a proven optional authority-preservation capability, not a release
+gate.
+
 The current 2,000-account Tin Toy sample is the scale test for those reserves.
 On Calculon, immutable Tinman commit `911e472` and Tin Toy commit `97042dd`
 imported 1,998 non-genesis accounts, activated 21 deterministic witnesses,
