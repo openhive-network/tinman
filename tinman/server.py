@@ -11,7 +11,7 @@ import time
 import datetime
 
 from flask import Flask, render_template, flash, request
-from wtforms import Form, TextField, TextAreaField, validators, StringField, SubmitField
+from wtforms import Form, StringField, validators
 from binascii import hexlify, unhexlify
 
 from simple_steem_client.client import SteemRemoteBackend, SteemInterface, SteemRPCException
@@ -19,7 +19,7 @@ from simple_steem_client.client import SteemRemoteBackend, SteemInterface, Steem
 from . import submit
 
 class ReusableForm(Form):
-    new_account_name = TextField('New Account Name:', validators=[validators.required()])
+    new_account_name = StringField('New Account Name:', validators=[validators.DataRequired()])
 
 def main(argv):
     parser = argparse.ArgumentParser(prog=argv[0], description="Web Server")
@@ -57,10 +57,7 @@ def main(argv):
     
     signer = submit.TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
 
-    template_dir = '/tmp/tinman-templates'
-    static_dir = '/tmp/tinman-static'
-
-    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir, static_url_path='/static')
+    app = Flask(__name__)
     app.debug = True
     
     # Temporary development secret key (for web forms).

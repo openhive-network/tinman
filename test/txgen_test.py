@@ -1,8 +1,13 @@
+import copy
+from pathlib import Path
 import unittest
 import shutil
+import tempfile
 
 from tinman import prockey
 from tinman import txgen
+
+TEST_DIR = Path(__file__).resolve().parent
 
 FULL_CONF = {
     "transactions_per_block" : 40,
@@ -12,8 +17,8 @@ FULL_CONF = {
     "hive_max_authority_membership" : 10,
     "hive_address_prefix" : "TST",
     "hive_init_miner_name" : 'initminer',
-    "snapshot_file" : "/tmp/test-snapshot.json",
-    "backfill_file" : "/tmp/test-backfill.actions",
+    "snapshot_file" : None,
+    "backfill_file" : None,
     "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
     "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
     "accounts" : {
@@ -49,6 +54,17 @@ FULL_CONF = {
     }
 
 class TxgenTest(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def copy_fixture(self, filename):
+        destination = Path(self.temp_dir.name) / filename
+        shutil.copyfile(TEST_DIR / filename, destination)
+        return str(destination)
 
     def test_create_system_accounts_bad_args(self):
         self.assertRaises(TypeError, txgen.create_system_accounts)
@@ -130,9 +146,8 @@ class TxgenTest(unittest.TestCase):
                 self.assertTrue(value["approve"])
 
     def test_get_account_stats(self):
-        shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
         conf = {
-          "snapshot_file" : "/tmp/test-snapshot.json",
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "accounts": {}
         }
         
@@ -149,9 +164,8 @@ class TxgenTest(unittest.TestCase):
         self.assertEqual(account_stats["total_hive"], 60859732440)
 
     def test_get_proportions(self):
-        shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
         conf = {
-          "snapshot_file" : "/tmp/test-snapshot.json",
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
           "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
           "accounts": {}
@@ -164,9 +178,8 @@ class TxgenTest(unittest.TestCase):
         self.assertEqual(proportions["hive_conversion_factor"], 776237928593)
 
     def test_create_accounts(self):
-        shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
         conf = {
-          "snapshot_file" : "/tmp/test-snapshot.json",
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
           "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
           "accounts": {"porter": {"name": "porter"}
@@ -193,9 +206,8 @@ class TxgenTest(unittest.TestCase):
 
 
     def test_update_accounts(self):
-        shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
         conf = {
-          "snapshot_file" : "/tmp/test-snapshot.json",
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
           "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
           "accounts": {"manager": {"name": "tnman"}
@@ -218,10 +230,11 @@ class TxgenTest(unittest.TestCase):
                 self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
             
     def test_build_actions(self):
-        shutil.copyfile("test-snapshot.json", "/tmp/test-snapshot.json")
-        shutil.copyfile("test-backfill.actions", "/tmp/test-backfill.actions")
-        
-        for action in txgen.build_actions(FULL_CONF):
+        conf = copy.deepcopy(FULL_CONF)
+        conf["snapshot_file"] = self.copy_fixture("test-snapshot.json")
+        conf["backfill_file"] = self.copy_fixture("test-backfill.actions")
+
+        for action in txgen.build_actions(conf):
             cmd, args = action
             
             if cmd == "metadata":
@@ -253,9 +266,8 @@ class TxgenTest(unittest.TestCase):
                 self.fail("Unexpected action: %s" % cmd)
 
     def test_build_actions_future_snapshot(self):
-        shutil.copyfile("test-future-snapshot.json", "/tmp/test-future-snapshot.json")
-        conf = FULL_CONF.copy()
-        conf["snapshot_file"] = "/tmp/test-future-snapshot.json"
+        conf = copy.deepcopy(FULL_CONF)
+        conf["snapshot_file"] = self.copy_fixture("test-future-snapshot.json")
         
         with self.assertRaises(RuntimeError) as ctx:
             for action in txgen.build_actions(conf):
@@ -271,9 +283,8 @@ class TxgenTest(unittest.TestCase):
             "elect-3", "elect-4", "elect-5", "elect-6", "elect-7", "elect-8",
             "elect-9", "tnman", "porter"]
         
-        shutil.copyfile("test-no-main-accounts-snapshot.json", "/tmp/test-no-main-accounts-snapshot.json")
-        conf = FULL_CONF.copy()
-        conf["snapshot_file"] = "/tmp/test-no-main-accounts-snapshot.json"
+        conf = copy.deepcopy(FULL_CONF)
+        conf["snapshot_file"] = self.copy_fixture("test-no-main-accounts-snapshot.json")
         
         for action in txgen.build_actions(conf):
             cmd, args = action

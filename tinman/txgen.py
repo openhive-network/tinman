@@ -10,16 +10,11 @@ import os.path
 import random
 import sys
 
-try:
-    import ijson.backends.yajl2_cffi as ijson
-    from cffi import FFI
-    YAJL2_CFFI_AVAILABLE = True
-except ImportError:
-    import ijson
-    YAJL2_CFFI_AVAILABLE = False
+import ijson
     
 from . import __version__
 from . import prockey
+from . import timeutil
 from . import util
 
 SNAPSHOT_MAJOR_VERSION_SUPPORTED = 0
@@ -155,9 +150,6 @@ def get_account_stats(conf, silent=True):
     vests = 0
     total_hive = 0
     account_names = set()
-    
-    if not silent and not YAJL2_CFFI_AVAILABLE:
-        print("Warning: could not load yajl, falling back to default backend for ijson.")
     
     with open(conf["snapshot_file"], "rb") as f:
         for acc in ijson.items(f, "accounts.item"):
@@ -375,16 +367,16 @@ def port_snapshot(account_stats, conf, keydb, silent=True):
 
 def build_actions(conf, silent=True):
     keydb = prockey.ProceduralKeyDatabase()
-    account_stats_start = datetime.datetime.utcnow()
+    account_stats_start = timeutil.utc_now()
     account_stats = get_account_stats(conf, silent)
-    account_stats_elapsed = datetime.datetime.utcnow() - account_stats_start
+    account_stats_elapsed = timeutil.utc_now() - account_stats_start
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
     transactions_per_block = conf["transactions_per_block"]
     hive_block_interval = conf.get("hive_block_interval", HIVE_BLOCK_INTERVAL)
     transaction_witness_setup_pad = conf.get("transaction_witness_setup_pad", TRANSACTION_WITNESS_SETUP_PAD)
     
-    genesis_time = datetime.datetime.utcfromtimestamp(HIVE_GENESIS_TIMESTAMP)
+    genesis_time = timeutil.utc_fromtimestamp(HIVE_GENESIS_TIMESTAMP)
     
     # Three transactions per account (create, trasnfer_to_vesting, and update).
     predicted_transaction_count = num_accounts * 3
@@ -400,7 +392,7 @@ def build_actions(conf, silent=True):
     # setup processing time
     predicted_block_count += transaction_witness_setup_pad + (predicted_transaction_setup_seconds // hive_block_interval)
     
-    now = datetime.datetime.utcnow()
+    now = timeutil.utc_now()
     start_time = now - datetime.timedelta(seconds=predicted_block_count * hive_block_interval)
     miss_blocks = int((start_time - genesis_time).total_seconds()) // hive_block_interval
     miss_blocks = max(miss_blocks-1, 0)

@@ -15,65 +15,38 @@ This repository contains utilities to create a testnet.
 
 # Installation
 
-## Linux
+Tinman supports CPython 3.12, 3.13, and 3.14. Create a virtual environment and
+install the project with pip:
 
 ```bash
-$ sudo apt-get install virtualenv python3 libyajl-dev git
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
 ```
 
-## macOS
+The account-creation server is optional. Install its Flask and WTForms
+dependencies with the `server` extra:
 
 ```bash
-$ brew install python3 yajl
-$ pip3 install virtualenv
+python -m pip install ".[server]"
 ```
 
-## Creating a virtualenv
-
-In this step we create a virtualenv to isolate our project from the
-system-wide Python installation.  The virtualenv is *activated*,
-modifying the `PATH` and the prompt of the current shell,
-by sourcing the `activate` script:
+For an editable development environment with the build and test-matrix tools:
 
 ```bash
-$ virtualenv -p $(which python3) ~/ve/tinman
-$ source ~/ve/tinman/bin/activate
-```
-
-## Dependency Notes
-
-Tinman should work right out of the box, but on some more delicately configured machines, some users report `ijson` errors.  Running `pip install ijson` or `pip3 install ijson` should take care of that.
-
-The `ijson` requirement also uses `yajl` for performance improvements.  But `yajl` is optional and if it cannot be installed, there will be a warning that can be ignored.
-
-## Using tinman
-
-The `tinman` source can be checked out with `git`.  This documentation
-assumes the source code lives in `~/src/tinman`:
-
-**Note:**`tinman`'s default branch is develop. `master` is condsidered stablish.
-
-```bash
-$ mkdir -p ~/src
-$ cd ~/src
-$ git clone --branch master https://gitlab.syncad.com/hive/tinman.git
-$ cd tinman
-$ pip install pipenv
-$ pipenv install
-$ pip install .
+python -m pip install -e ".[dev]"
 ```
 
 If everything is set up correctly, you should be able to run commands
-such as `tinman --help` as follows:
+such as:
 
 ```bash
-# Execute inside tinman virtualenv
-$ tinman --help
+tinman --help
 ```
 
-Note, the `tinman` script in `~/ve/tinman/bin/tinman` may be symlinked
-elsewhere (for example, `ln -s ~/ve/tinman/bin/tinman ~/bin/tinman`)
-to allow `tinman` to run without the `virtualenv` being active.
+The current Python compatibility guarantee covers installation, unit tests,
+packaged resources, and local CLI behavior. It does not yet certify Tinman's
+historical RPC and debug-node calls against a current Hive node.
 
 # Example Usage
 
@@ -350,11 +323,23 @@ transition.
 
 ## Tests
 
-To test `tinman`:
+Run the suite on the active interpreter:
 
 ```bash
-$ cd test
-$ pip install .. && python -m unittest *_test.py
+python -m unittest discover -s test -p '*_test.py'
+python -m tinman --help
+```
+
+Run the complete Python 3.12-3.14 matrix with tox:
+
+```bash
+python -m tox
+```
+
+Build and smoke-test the Python 3.12 container:
+
+```bash
+make docker-test
 ```
 
 <img src="https://i.imgur.com/h57pDVE.png" width="25%" height="25%" />

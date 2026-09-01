@@ -29,16 +29,7 @@ def main(argv):
     else:
         # We have random access!
         
-        try:
-            import ijson.backends.yajl2_cffi as ijson
-            from cffi import FFI
-            YAJL2_CFFI_AVAILABLE = True
-        except ImportError:
-            import ijson
-            YAJL2_CFFI_AVAILABLE = False
-        
-        if not YAJL2_CFFI_AVAILABLE:
-            print("Warning: could not load yajl, falling back to default backend for ijson.")
+        import ijson
         
         infile = open(args.infile, "rb")
 

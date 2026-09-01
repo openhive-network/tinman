@@ -5,6 +5,8 @@ import datetime
 
 from simple_steem_client.client import SteemRemoteBackend, SteemInterface
 
+from . import timeutil
+
 PREFLIGHT_GO = 'go'
 PREFLIGHT_NOGO = 'nogo'
 
@@ -23,7 +25,7 @@ def main(argv):
     config = steemd.database_api.get_config(x=None)
     dgpo = steemd.database_api.get_dynamic_global_properties(x=None)
     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
-    rtc_now = datetime.datetime.utcnow()
+    rtc_now = timeutil.utc_now()
     diff = rtc_now - head_block_time
     diff = diff.total_seconds()
     block_interval = config["HIVE_BLOCK_INTERVAL"]

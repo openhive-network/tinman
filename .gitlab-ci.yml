@@ -1,0 +1,40 @@
+stages:
+  - test
+  - package
+
+python:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.12", "3.13", "3.14"]
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install .
+  script:
+    - python -W error::DeprecationWarning -m unittest discover -s test -p "*_test.py"
+    - python -m tinman --help
+
+server:
+  stage: test
+  image: python:3.12
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install ".[server]"
+  script:
+    - python -m tinman server --help
+
+package:
+  stage: package
+  image: python:3.12
+  before_script:
+    - python -m pip install --upgrade pip build
+  script:
+    - python -m build
+    - python -m venv /tmp/tinman-wheel-test
+    - /tmp/tinman-wheel-test/bin/python -m pip install dist/*.whl
+    - cd /tmp && /tmp/tinman-wheel-test/bin/python -m tinman --help
+    - cd /tmp && /tmp/tinman-wheel-test/bin/python -m unittest discover -s "$CI_PROJECT_DIR/test" -p "*_test.py"
+  artifacts:
+    paths:
+      - dist/

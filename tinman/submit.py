@@ -15,6 +15,7 @@ import sys
 import time
 import traceback
 
+from . import timeutil
 from . import util
 
 ACTIONS_MAJOR_VERSION_SUPPORTED = 0
@@ -63,7 +64,7 @@ class CachedDgpo(object):
 
 def wait_for_real_time(when):
     while True:
-        rtc_now = datetime.datetime.utcnow()
+        rtc_now = timeutil.utc_now()
         if rtc_now >= when:
             break
         time.sleep(0.4)
@@ -172,7 +173,7 @@ def main(argv):
                 
                 if args.get("post_backfill"):
                     dgpo = cached_dgpo.get()
-                    now = datetime.datetime.utcnow()
+                    now = timeutil.utc_now()
                     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
                     join_head = int((now - head_block_time).total_seconds()) // HIVE_BLOCK_INTERVAL
                     

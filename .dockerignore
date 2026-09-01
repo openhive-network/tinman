@@ -1,0 +1,9 @@
+.git
+.gitignore
+.malp
+.tox
+__pycache__
+*.py[cod]
+build
+dist
+tinman.egg-info
