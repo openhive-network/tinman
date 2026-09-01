@@ -6,7 +6,6 @@ import json
 import logging
 import time
 import socket
-import sys
 import urllib.error
 import urllib.request
 
@@ -22,6 +21,9 @@ class HiveHTTPError(HiveException):
     pass
 
 class HiveNetworkError(HiveException):
+    pass
+
+class HiveResponseError(HiveException):
     pass
 
 class HiveIllegalArgument(HiveException):
@@ -41,7 +43,7 @@ class HiveRemoteBackend(object):
        min_timeout=2.0,
        timeout_backoff=1.0,
        max_timeout=30.0,
-       max_retries=-1,
+       max_retries=3,
        req_id=0,
        req_id_increment=1,
        sleep_function=None,
@@ -59,7 +61,7 @@ class HiveRemoteBackend(object):
         :param min_timeout:  Minimum amount of time to wait
         :param timeout_backoff:  Amount to increase timeout on HTTP failure code
         :param max_timeout:  Maximum amount of time to wait
-        :param max_retries:  Maximum number of retries to attempt (-1 means try again forever)
+        :param max_retries:  Maximum number of retries after the initial request
         :param req_id:  The ID of the first request
         :param req_id_increment:  The amount by which subsequent request ID's should be incremented
         :param sleep_function:  time.sleep() or similar
@@ -82,6 +84,8 @@ class HiveRemoteBackend(object):
         self.timeout_backoff = timeout_backoff
         self.max_timeout = max_timeout
         self.max_retries = max_retries
+        if self.max_retries < 0:
+            raise HiveIllegalArgument("max_retries must be non-negative")
 
         self.req_id = req_id
         self.req_id_increment = req_id_increment
@@ -161,34 +165,50 @@ class HiveRemoteBackend(object):
             logging.info("req: %s", req_bytes)
 
             url = self.nodes[self.current_node]
-            exc = None
-
             try:
                 with self.urlopen(url, req_bytes, timeout,
                     *self.urlopen_args, **self.urlopen_kwargs) as f:
                     resp_bytes = f.read()
-            except urllib.error.HTTPError as e:
-                exc = sys.exc_info()
-            except urllib.error.URLError as e:
-                exc = sys.exc_info()
-            except socket.timeout as e:
-                exc = sys.exc_info()
-
-            if exc is not None:
-                logging.error("caught exception in request", exc_info=exc)
+            except urllib.error.HTTPError as error:
+                retryable = error.code in {408, 425, 429} or 500 <= error.code < 600
+                error.close()
+                if not retryable or retry_count >= self.max_retries:
+                    raise HiveHTTPError(
+                        "Hive HTTP request failed with status {}".format(error.code)
+                    ) from error
+                logging.warning(
+                    "retrying Hive HTTP request after status %s", error.code
+                )
                 retry_count += 1
-                if (self.max_retries == -1) or (retry_count <= self.max_retries):
-                    self.sleep_function(timeout)
-                    timeout = min(timeout + self.timeout_backoff, self.max_timeout)
-                    continue
-                if isinstance(exc, urllib.error.HTTPError):
-                    raise HiveHTTPError(exc)
-                raise HiveNetworkError(exc)
+                self.sleep_function(timeout)
+                timeout = min(timeout + self.timeout_backoff, self.max_timeout)
+                continue
+            except (urllib.error.URLError, socket.timeout) as error:
+                if retry_count >= self.max_retries:
+                    raise HiveNetworkError(
+                        "Hive request failed after {} attempt(s)".format(
+                            retry_count + 1
+                        )
+                    ) from error
+                logging.warning("retrying Hive request after network failure")
+                retry_count += 1
+                self.sleep_function(timeout)
+                timeout = min(timeout + self.timeout_backoff, self.max_timeout)
+                continue
             logging.info("resp: %s", resp_bytes)
-            resp_json = resp_bytes.decode("utf-8")
-            resp = self.json_decoder.decode(resp_json)
+            try:
+                resp_json = resp_bytes.decode("utf-8")
+                resp = self.json_decoder.decode(resp_json)
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise HiveResponseError("Hive returned a non-JSON response") from error
+            if not isinstance(resp, dict):
+                raise HiveResponseError("Hive returned a non-object JSON response")
+            if resp.get("id") != req_id:
+                raise HiveResponseError("Hive response ID did not match the request")
             if "error" in resp:
                 raise HiveRPCException(resp)
+            if "result" not in resp:
+                raise HiveResponseError("Hive response omitted both result and error")
             return resp["result"]
 
 class HiveInterface(object):

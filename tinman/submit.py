@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-from simple_hive_client.client import HiveRemoteBackend, HiveInterface
+from simple_hive_client.client import (
+    HiveInterface,
+    HiveNetworkError,
+    HiveRemoteBackend,
+)
 
 from binascii import hexlify, unhexlify
 
@@ -21,13 +25,19 @@ from . import util
 ACTIONS_MAJOR_VERSION_SUPPORTED = 0
 ACTIONS_MINOR_VERSION_SUPPORTED = 2
 HIVE_BLOCK_INTERVAL = 3
+DEFAULT_READ_RETRIES = 2
+DEFAULT_BLOCK_TIMEOUT = 300.0
+
+
+class BroadcastOutcomeUnknown(RuntimeError):
+    pass
 
 class TransactionSigner(object):
     def __init__(self, sign_transaction_exe=None, chain_id=None):
         if(chain_id is None):
-            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return
 
     def sign_transaction(self, tx, wif):
@@ -37,7 +47,17 @@ class TransactionSigner(object):
         self.proc.stdin.write(b"\n")
         self.proc.stdin.flush()
         line = self.proc.stdout.readline().decode("utf-8")
-        return json.loads(line)
+        if not line:
+            signer_error = self.proc.stderr.read().decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                "transaction signer exited without a response{}".format(
+                    ": " + signer_error if signer_error else ""
+                )
+            )
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError as error:
+            raise RuntimeError("transaction signer returned invalid JSON") from error
 
 class CachedDgpo(object):
     def __init__(self, timefunc=time.time, refresh_interval=1.0, hived=None):
@@ -70,10 +90,15 @@ def wait_for_real_time(when):
         time.sleep(0.4)
 
 def broadcast_transaction(hived, tx):
-    return hived.network_broadcast_api.broadcast_transaction(
-        trx=tx,
-        max_block_age=-1,
-        )
+    try:
+        return hived.network_broadcast_api.broadcast_transaction(
+            trx=tx,
+            max_block_age=-1,
+            )
+    except HiveNetworkError as error:
+        raise BroadcastOutcomeUnknown(
+            "broadcast outcome is unknown; the transaction was not retried"
+        ) from error
 
 def generate_blocks(hived, args, cached_dgpo=None, now=None, produce_realtime=False):
     if args["count"] <= 0:
@@ -127,6 +152,8 @@ def main(argv):
     parser.add_argument("-c", "--chain-id", default="", dest="chain_id", metavar="CID", help="Specify chain ID")
     parser.add_argument("-tpb", "--transactions-per-block", default="40", dest="transactions_per_block", metavar="INT", help="Transactions per block (default: 40)")
     parser.add_argument("--timeout", default=5.0, type=float, dest="timeout", metavar="SECONDS", help="API timeout")
+    parser.add_argument("--block-timeout", default=DEFAULT_BLOCK_TIMEOUT, type=float, dest="block_timeout", metavar="SECONDS", help="Timeout for debug block generation")
+    parser.add_argument("--read-retries", default=DEFAULT_READ_RETRIES, type=int, dest="read_retries", metavar="COUNT", help="Retries for read-only Hive RPC calls")
     parser.add_argument("--realtime", dest="realtime", action="store_true", help="Wait when asked to produce blocks in the future")
     cli_args = parser.parse_args(argv[1:])
 
@@ -146,12 +173,28 @@ def main(argv):
 
     timeout = cli_args.timeout
 
-    backend = HiveRemoteBackend(nodes=[cli_args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    hived = HiveInterface(backend)
+    read_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=timeout, max_timeout=timeout,
+        max_retries=cli_args.read_retries,
+    )
+    debug_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=cli_args.block_timeout, max_timeout=cli_args.block_timeout,
+        max_retries=0,
+    )
+    broadcast_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=timeout, max_timeout=timeout,
+        max_retries=0,
+    )
+    read_hived = HiveInterface(read_backend)
+    debug_hived = HiveInterface(debug_backend)
+    broadcast_hived = HiveInterface(broadcast_backend)
     sign_transaction_exe = cli_args.sign_transaction_exe
     produce_realtime = cli_args.realtime
 
-    cached_dgpo = CachedDgpo(hived=hived)
+    cached_dgpo = CachedDgpo(hived=read_hived)
 
     if cli_args.chain_name != "":
         chain_id = hashlib.sha256(str.encode(cli_args.chain_name.strip())).digest().hex()
@@ -163,6 +206,7 @@ def main(argv):
 
     transactions_per_block = int(cli_args.transactions_per_block)
     transactions_count = 0
+    failure_count = 0
     signer = TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
     metadata = None
 
@@ -182,7 +226,7 @@ def main(argv):
                     join_head = int((now - head_block_time).total_seconds()) // HIVE_BLOCK_INTERVAL
                     
                     if join_head > HIVE_BLOCK_INTERVAL:
-                        generate_blocks(hived, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                        generate_blocks(debug_hived, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                         cached_dgpo.reset()
                 else:
                     transactions_per_block = metadata.get("txgen:transactions_per_block", transactions_per_block)
@@ -202,7 +246,7 @@ def main(argv):
                 if metadata and action_args.get("count") == 1 and action_args.get("miss_blocks"):
                     if action_args["miss_blocks"] < metadata["recommend:miss_blocks"]:
                         action_args["miss_blocks"] = metadata["recommend:miss_blocks"]
-                generate_blocks(hived, action_args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                generate_blocks(debug_hived, action_args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                 cached_dgpo.reset()
             elif cmd == "submit_transaction":
                 tx = action_args["tx"]
@@ -230,23 +274,33 @@ def main(argv):
                 tx["signatures"] = sigs
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
 
-                broadcast_transaction(hived, tx)
+                broadcast_transaction(broadcast_hived, tx)
                 transactions_count += 1
 
                 if (metadata and transactions_count > 0
                         and transactions_count % transactions_per_block == 0):
                     generate_blocks(
-                        hived, {"count": 1}, cached_dgpo=cached_dgpo,
+                        debug_hived, {"count": 1}, cached_dgpo=cached_dgpo,
                         produce_realtime=produce_realtime
                     )
                     cached_dgpo.reset()
         except Exception as e:
+            failure_count += 1
             failed_args = action_args if action_args is not None else {"raw": line}
             fail_file.write(json.dumps([cmd, failed_args, str(e)])+"\n")
             fail_file.flush()
             if die_on_fail:
+                if input_file is not sys.stdin:
+                    input_file.close()
+                if fail_file is not sys.stdout:
+                    fail_file.close()
                 raise
-        
+
+    if input_file is not sys.stdin:
+        input_file.close()
+    if fail_file is not sys.stdout:
+        fail_file.close()
+    return 1 if failure_count else 0
 
 if __name__ == "__main__":
     main(sys.argv)

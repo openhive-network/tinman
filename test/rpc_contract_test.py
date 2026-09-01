@@ -1,12 +1,22 @@
 import json
+import socket
 import unittest
+import urllib.error
 
-from simple_hive_client.client import HiveInterface, HiveRemoteBackend
+from simple_hive_client.client import (
+    HiveHTTPError,
+    HiveIllegalArgument,
+    HiveInterface,
+    HiveNetworkError,
+    HiveRemoteBackend,
+    HiveResponseError,
+)
 
 
 class FakeResponse:
-    def __init__(self, payload):
+    def __init__(self, payload, raw=False):
         self.payload = payload
+        self.raw = raw
 
     def __enter__(self):
         return self
@@ -15,6 +25,8 @@ class FakeResponse:
         return False
 
     def read(self):
+        if self.raw:
+            return self.payload
         return json.dumps(self.payload).encode("utf-8")
 
 
@@ -205,3 +217,90 @@ class RpcContractTest(unittest.TestCase):
             requests[0]["params"],
             ["database_api", "get_dynamic_global_properties", {}],
         )
+
+    def test_network_failure_exhausts_retry_budget(self):
+        calls = []
+        sleeps = []
+
+        def unavailable(url, data, timeout):
+            calls.append(timeout)
+            raise urllib.error.URLError("offline")
+
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"], urlopen=unavailable,
+            max_retries=2, min_timeout=1, timeout_backoff=1,
+            sleep_function=sleeps.append,
+        )
+        with self.assertRaises(HiveNetworkError):
+            HiveInterface(backend).database_api.get_config()
+        self.assertEqual(calls, [1, 2, 3])
+        self.assertEqual(sleeps, [1, 2])
+
+    def test_socket_timeout_exhausts_retry_budget(self):
+        attempts = []
+
+        def timeout(url, data, request_timeout):
+            attempts.append(request_timeout)
+            raise socket.timeout("slow")
+
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"], urlopen=timeout,
+            max_retries=1, sleep_function=lambda seconds: None,
+        )
+        with self.assertRaises(HiveNetworkError):
+            HiveInterface(backend).database_api.get_config()
+        self.assertEqual(len(attempts), 2)
+
+    def test_non_retryable_http_error_is_not_retried(self):
+        attempts = []
+
+        def missing(url, data, timeout):
+            attempts.append(timeout)
+            raise urllib.error.HTTPError(url, 404, "missing", {}, None)
+
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"], urlopen=missing,
+            max_retries=3, sleep_function=lambda seconds: None,
+        )
+        with self.assertRaises(HiveHTTPError):
+            HiveInterface(backend).database_api.get_config()
+        self.assertEqual(len(attempts), 1)
+
+    def test_retryable_http_error_is_bounded(self):
+        attempts = []
+
+        def unavailable(url, data, timeout):
+            attempts.append(timeout)
+            raise urllib.error.HTTPError(url, 503, "busy", {}, None)
+
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"], urlopen=unavailable,
+            max_retries=2, sleep_function=lambda seconds: None,
+        )
+        with self.assertRaises(HiveHTTPError):
+            HiveInterface(backend).database_api.get_config()
+        self.assertEqual(len(attempts), 3)
+
+    def test_non_json_response_is_normalized(self):
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"],
+            urlopen=lambda url, data, timeout: FakeResponse(b"not json", raw=True),
+            max_retries=0,
+        )
+        with self.assertRaisesRegex(HiveResponseError, "non-JSON"):
+            HiveInterface(backend).database_api.get_config()
+
+    def test_mismatched_response_id_is_rejected(self):
+        backend = HiveRemoteBackend(
+            nodes=["https://hive.example"],
+            urlopen=lambda url, data, timeout: FakeResponse({
+                "jsonrpc": "2.0", "id": 999, "result": {},
+            }),
+            max_retries=0,
+        )
+        with self.assertRaisesRegex(HiveResponseError, "ID did not match"):
+            HiveInterface(backend).database_api.get_config()
+
+    def test_negative_retry_budget_is_rejected(self):
+        with self.assertRaisesRegex(HiveIllegalArgument, "non-negative"):
+            HiveRemoteBackend(nodes=["https://hive.example"], max_retries=-1)

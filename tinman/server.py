@@ -16,7 +16,7 @@ from flask import Flask, Response, abort, render_template, flash, request, sessi
 from wtforms import Form, StringField, validators
 from binascii import hexlify, unhexlify
 
-from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
+from simple_hive_client.client import HiveException, HiveInterface, HiveRemoteBackend
 
 from . import submit
 
@@ -38,10 +38,16 @@ def require_server_security(conf):
 
 
 def authorized(request_authorization, username, password):
+    def equal(left, right):
+        return hmac.compare_digest(
+            (left or "").encode("utf-8"),
+            (right or "").encode("utf-8"),
+        )
+
     return bool(
         request_authorization
-        and hmac.compare_digest(request_authorization.username or "", username)
-        and hmac.compare_digest(request_authorization.password or "", password)
+        and equal(request_authorization.username, username)
+        and equal(request_authorization.password, password)
     )
 
 
@@ -49,6 +55,16 @@ def signature_from_result(result):
     if "error" in result:
         raise RuntimeError("transaction signer failed: {}".format(result["error"]))
     return result["result"]["sig"]
+
+
+def hive_error_message(error):
+    if error.args and isinstance(error.args[0], dict):
+        cause = error.args[0].get("error")
+        if isinstance(cause, dict) and cause.get("message"):
+            return str(cause["message"])
+        if cause:
+            return str(cause)
+    return str(error)
 
 def main(argv):
     parser = argparse.ArgumentParser(prog=argv[0], description="Web Server")
@@ -58,6 +74,7 @@ def main(argv):
     parser.add_argument("-n", "--chain-name", default="", dest="chain_name", metavar="CN", help="Specify chain name")
     parser.add_argument("-cid", "--chain-id", default="", dest="chain_id", metavar="CID", help="Specify chain ID")
     parser.add_argument("--timeout", default=5.0, type=float, dest="timeout", metavar="SECONDS", help="API timeout")
+    parser.add_argument("--read-retries", default=submit.DEFAULT_READ_RETRIES, type=int, dest="read_retries", metavar="COUNT", help="Retries for read-only Hive RPC calls")
     args = parser.parse_args(argv[1:])
     
     with open(args.conffile, "r") as f:
@@ -73,8 +90,16 @@ def main(argv):
     result_str = result_bytes.decode("utf-8")
     result_json = json.loads(result_str.strip())
     account_creator_wif = result_json[0]["private_key"]
-    backend = HiveRemoteBackend(nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    hived = HiveInterface(backend)
+    read_backend = HiveRemoteBackend(
+        nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout,
+        max_retries=args.read_retries,
+    )
+    broadcast_backend = HiveRemoteBackend(
+        nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout,
+        max_retries=0,
+    )
+    read_hived = HiveInterface(read_backend)
+    broadcast_hived = HiveInterface(broadcast_backend)
     sign_transaction_exe = args.sign_transaction_exe
     
     if args.chain_name != "":
@@ -144,7 +169,7 @@ def main(argv):
                     "signatures":[]
                 }
                 
-                cached_dgpo = submit.CachedDgpo(hived=hived)
+                cached_dgpo = submit.CachedDgpo(hived=read_hived)
                 dgpo = cached_dgpo.get()
                 tx["ref_block_num"] = dgpo["head_block_number"] & 0xFFFF
                 tx["ref_block_prefix"] = struct.unpack_from("<I", unhexlify(dgpo["head_block_id"]), 4)[0]
@@ -163,18 +188,13 @@ def main(argv):
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
                 
                 try:
-                    submit.broadcast_transaction(hived, tx)
+                    submit.broadcast_transaction(broadcast_hived, tx)
                     flash("Account Created: " + new_account_name)
                     
                     for key in keys:
                         flash(key + ": " + keys[key]["private_key"])
-                except HiveRPCException as e:
-                    cause = e.args[0].get("error")
-                    if cause:
-                        message = cause.get("message")
-                        data = cause.get("data")
-                    else:
-                        message = str(e)
+                except (HiveException, submit.BroadcastOutcomeUnknown) as e:
+                    message = hive_error_message(e)
                     print(str(e))
                     flash("Unable to create account: " + message)
             else:

@@ -44,14 +44,28 @@ class ServerTest(unittest.TestCase):
 
             with mock.patch.object(
                     server.subprocess, "check_output", return_value=generated_key
-            ), mock.patch.object(server, "HiveRemoteBackend"), mock.patch.object(
+            ), mock.patch.object(server, "HiveRemoteBackend") as backend, mock.patch.object(
                     server, "HiveInterface", return_value=hived
             ), mock.patch.object(
                     server.submit, "TransactionSigner", return_value=signer
-            ), mock.patch.object(
+            ) as signer_class, mock.patch.object(
                     server.submit, "broadcast_transaction"
             ) as broadcast, mock.patch.object(server.Flask, "run", new=capture_app):
-                server.main(["server", "--conffile", str(config_path)])
+                server.main([
+                    "server", "--conffile", str(config_path),
+                    "--chain-id", "selected-chain", "--read-retries", "4",
+                ])
+                signer_class.assert_called_once_with(
+                    sign_transaction_exe="sign_transaction",
+                    chain_id="selected-chain",
+                )
+                self.assertEqual(len(backend.call_args_list), 2)
+                self.assertEqual(
+                    backend.call_args_list[0].kwargs["max_retries"], 4
+                )
+                self.assertEqual(
+                    backend.call_args_list[1].kwargs["max_retries"], 0
+                )
                 client = apps[0].test_client()
                 credentials = base64.b64encode(b"user:password").decode("ascii")
                 headers = {"Authorization": "Basic " + credentials}
@@ -97,12 +111,23 @@ class ServerTest(unittest.TestCase):
         self.assertFalse(server.authorized(auth, "user", "wrong"))
         self.assertFalse(server.authorized(None, "user", "password"))
 
+        unicode_auth = types.SimpleNamespace(username="usér", password="päss")
+        self.assertTrue(server.authorized(unicode_auth, "usér", "päss"))
+
     def test_signer_error_stops_before_broadcast(self):
         with self.assertRaisesRegex(RuntimeError, "signer failed"):
             server.signature_from_result({"error": "failure"})
         self.assertEqual(
             server.signature_from_result({"result": {"sig": "signature"}}),
             "signature",
+        )
+
+    def test_hive_error_message_handles_unexpected_shapes(self):
+        self.assertEqual(
+            server.hive_error_message(RuntimeError({"error": "odd"})), "odd"
+        )
+        self.assertEqual(
+            server.hive_error_message(RuntimeError("plain")), "plain"
         )
 
 
