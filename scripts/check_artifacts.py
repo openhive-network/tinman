@@ -2,8 +2,10 @@
 """Build and smoke-test Tinman's wheel and sdist in isolated environments."""
 
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import venv
 
@@ -33,7 +35,9 @@ def smoke_artifact(artifact, work_directory):
         "-c",
         (
             "import importlib.metadata, importlib.resources; "
+            "import importlib.util; "
             "assert importlib.metadata.version('tinman'); "
+            "assert importlib.util.find_spec('simple_steem_client') is None; "
             "root = importlib.resources.files('tinman'); "
             "assert root.joinpath('templates/account_create.html').is_file(); "
             "assert root.joinpath('static/bootstrap.min.css').is_file()"
@@ -41,17 +45,42 @@ def smoke_artifact(artifact, work_directory):
     ], cwd=work_directory)
 
 
+def check_sdist_contents(sdist):
+    with tarfile.open(sdist, "r:gz") as archive:
+        names = archive.getnames()
+    required_suffixes = (
+        "/txgen.conf.example",
+        "/server.conf.example",
+        "/scripts/hive_compatibility.py",
+        "/test/txgen_test.py",
+    )
+    for suffix in required_suffixes:
+        if not any(name.endswith(suffix) for name in names):
+            raise RuntimeError("sdist omitted {}".format(suffix[1:]))
+    if any("simple_steem_client" in name for name in names):
+        raise RuntimeError("sdist contains removed simple_steem_client package")
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="tinman-artifacts-") as temporary:
         work_directory = Path(temporary)
         dist_directory = work_directory / "dist"
+        source_directory = work_directory / "source"
+        shutil.copytree(
+            PROJECT_ROOT,
+            source_directory,
+            ignore=shutil.ignore_patterns(
+                ".git", ".tox", ".venv", "build", "dist", "*.egg-info",
+                "__pycache__", ".malp", ".clawpatch", ".idea",
+            ),
+        )
         run([
             sys.executable,
             "-m",
             "build",
             "--outdir",
             str(dist_directory),
-            str(PROJECT_ROOT),
+            str(source_directory),
         ], cwd=work_directory)
 
         wheels = sorted(dist_directory.glob("*.whl"))
@@ -62,6 +91,7 @@ def main():
                     [path.name for path in dist_directory.iterdir()]
                 )
             )
+        check_sdist_contents(sdists[0])
         for artifact in [wheels[0], sdists[0]]:
             smoke_artifact(artifact, work_directory)
 

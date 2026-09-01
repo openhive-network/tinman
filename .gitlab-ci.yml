@@ -1,10 +1,25 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
 stages:
   - test
   - package
   - container
   - compatibility
 
+.standard-job:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
 python:
+  extends: .standard-job
   stage: test
   image: python:${PYTHON_VERSION}
   parallel:
@@ -17,6 +32,7 @@ python:
     - python -m tox run -e "$TOX_ENV"
 
 server:
+  extends: .standard-job
   stage: test
   image: python:${PYTHON_VERSION}
   parallel:
@@ -29,6 +45,7 @@ server:
     - python -m tox run -e "$TOX_ENV"
 
 package:
+  extends: .standard-job
   stage: package
   image: python:3.12
   before_script:
@@ -37,6 +54,7 @@ package:
     - python -m tox run -e package
 
 container:
+  extends: .standard-job
   stage: container
   image: docker:29.0.0-cli
   services:

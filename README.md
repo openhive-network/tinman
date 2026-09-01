@@ -68,7 +68,11 @@ $ tinman snapshot -s http://127.0.0.1:8090 -o snapshot.json
 Once the `snapshot.json` file has been created, copy `txgen.conf.example` to
 `txgen.conf`:
 
-* `snapshot_file` - make sure this is the same name as your new `snaptshot.json`
+* `snapshot_file` - make sure this is the same name as your new `snapshot.json`
+* `account_creation_fee` - set this to the target node's exact current median
+  account-creation fee; zero is valid only when the node reports zero
+* `hive_genesis_supply` - set this to the liquid HIVE allocated at genesis;
+  txgen refuses plans whose direct allocations and fee reserves exceed it
 
 ```bash
 # Next, create actions.
@@ -88,7 +92,7 @@ tinman keysub --get-dev-key /path/to/hive/programs/util/get_dev_key | \
 tinman submit --realtime -t http://127.0.0.1:9990 \
   --signer /path/to/hive/programs/util/sign_transaction \
   -f fail.json \
-  -t 600
+  --block-timeout 600
 ```
 
 After allowing this script to run, you have now bootstrapped your testnet and you can point your witnesses at this node to start seeding and signing blocks.
