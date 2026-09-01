@@ -29,8 +29,8 @@ container is based on Python 3.12 and is built and smoke-tested on every commit.
 | Target | Status | Profile | Evidence |
 | --- | --- | --- | --- |
 | Current public Hive API | Tested | Read-only | `make compat-read-only` |
-| Hive testnet 1.28.7 | Pending | Fastgen | `make compat-fastgen` with the pinned image below |
-| Tin Toy's current `testnet:latest` image | Pending | Fastgen | Run against the captured digest below |
+| Hive testnet 1.28.7 | Tested | Fastgen | `make compat-matrix` with the pinned image below |
+| Captured Hive testnet 1.29.0 image | Tested | Fastgen | `make compat-matrix` with the captured digest below |
 | Unpinned `latest` images | Unsupported | — | Floating images cannot produce reproducible evidence |
 
 The current stable test target is:
@@ -46,9 +46,11 @@ On 2026-08-31 its linux/amd64 manifest resolved to:
 registry.gitlab.syncad.com/hive/hive/testnet@sha256:89be820efd988a8864c88225f6a26de92e36086af27dd8dde387d3067627fc4b
 ```
 
-The digest is reconnaissance, not yet a passing compatibility result. A
-fastgen report records both the digest-qualified image supplied by the operator
-and `database_api.get_version` returned by its endpoint.
+Both digest-pinned cells passed on linux/amd64 on 2026-09-01. Each processed 67
+submissions, advanced a pristine chain from the preflight block to block 24,
+and created `porter`. The 1.29.0 cell observed an active hardfork of 1.28.0 and
+a median account-creation fee of 0.030 HIVE; binary version and active hardfork
+are intentionally reported separately.
 
 ## RPC contract
 
@@ -57,6 +59,10 @@ contracts on every commit:
 
 - `database_api.list_accounts`
 - `database_api.list_witnesses`
+- `database_api.get_version`
+- `database_api.get_config`
+- `database_api.get_hardfork_properties`
+- `database_api.get_witness_schedule`
 - `database_api.get_dynamic_global_properties`
 - `debug_node_api.debug_generate_blocks`
 - `network_broadcast_api.broadcast_transaction`
@@ -67,7 +73,9 @@ The bundled client retains the older `call` envelope through
 ## Live profiles
 
 The read-only profile samples account and witness pagination, dynamic global
-properties, and the node version without modifying chain state:
+properties, node and active-hardfork versions, chain ID, address prefix,
+authority membership cap, block interval, and median account-creation fee
+without modifying chain state:
 
 ```bash
 make compat-read-only
@@ -77,7 +85,25 @@ The fastgen profile is destructive and must target a fresh local testnet. It
 generates actions from the small fixture, substitutes keys, submits signed
 transactions, advances blocks through `debug_node_api`, and verifies the
 resulting `porter` account. It refuses to run unless the Hive image is supplied
-by digest:
+by digest. On a pristine chain it first advances chain time through the initial
+hardfork boundary, then re-reads the live profile before generating actions.
+The live fee is used for every account creation and added to Porter's funding
+reserve.
+
+Run the reproducible two-image matrix on the configured remote Docker context:
+
+```bash
+make compat-matrix \
+  DOCKER_CONTEXT=calculon \
+  MATRIX_TINMAN_IMAGE=tinman:modernization
+```
+
+The runner uses a fresh network, container, and named utility volume for every
+cell, extracts signing tools from the exact Hive image, and cleans up all three
+resources on success or failure. Images must already be cached unless the
+runner is invoked directly with `--pull`.
+
+For an already-running testnet, the lower-level profile remains available:
 
 ```bash
 make compat-fastgen \
@@ -86,6 +112,11 @@ make compat-fastgen \
   GET_DEV_KEY=/path/to/get_dev_key \
   SIGN_TRANSACTION=/path/to/sign_transaction
 ```
+
+Hive's upstream Python test harness informed the lifecycle and chain-property
+checks, but it is not a Tinman dependency: the current harness requires Python
+3.14 and private `hiveio-*` packages. Tinman's matrix stays self-contained and
+uses the public Docker image plus JSON-RPC contracts.
 
 GitLab runs the fast Python, packaging, RPC-contract, and Tinman-container
 checks on every commit. Live Hive jobs are scheduled or manual. The destructive
