@@ -4,6 +4,14 @@ The `tinman` set of utilities is a set of scripts to create a testnet.
 A `tinman` testnet allows all, or some subset of, user accounts to
 easily be *ported* from the main network.
 
+The canonical upstream is
+[`hive/tinman`](https://gitlab.syncad.com/hive/tinman). That project is marked
+`not-maintained`; its `develop` branch last changed in November 2020. This
+modernization is based on that branch and keeps the verified core pipeline
+(`snapshot -> txgen -> keysub -> submit`) working with current Python and Hive
+testnet images. See [`COMPATIBILITY.md`](COMPATIBILITY.md) for the exact tested
+versions and evidence.
+
 # Tinman commands
 
 This repository contains utilities to create a testnet.
@@ -146,7 +154,16 @@ $ tinman txgen -c txgen.conf -o tn.txlist
 
 Some notes about `tinman txgen`:
 
-- All accounts have `porter` as an additional authority, allowing the testnet creator to act as any account on the testnet
+- All imported accounts have `tnman` as an additional authority, allowing the testnet creator to act as any account on the testnet
+- Tinman reserves room for its manager authority (`tnman` by default) within
+  Hive's live combined account-and-key authority limit. It keeps valid imported
+  account authorities in snapshot order, then imported keys while capacity
+  remains; excess members are omitted deterministically. This resolves the
+  bootstrap overflow described in [GitLab issue #1](https://gitlab.syncad.com/hive/tinman/-/issues/1)
+  when using standard Hive images. Hive later added a compile-time
+  `HIVE_CONVERTER_BUILD` mode with one extra authority slot for lossless
+  conversion, but the published images in Tinman's compatibility matrix report
+  the production limit of 40.
 - The private keys for `porter` and other accounts are deterministically created based on the `secret` option in the config file
 - Balances are created by dividing `total_port_balance` proportionally among the live HIVE and vesting, subject to `min_vesting_per_account`.
 - Therefore, testnet balance is not equal to mainnet balance.  Rather, it is proportional to mainnet balance.

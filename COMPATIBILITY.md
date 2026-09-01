@@ -39,8 +39,8 @@ The current stable test target is:
 registry.gitlab.syncad.com/hive/hive/testnet:1.28.7@sha256:4b5720852668ab9cbdd41e2f16543c3ccd30fb3fc217174d312f38ff86867c79
 ```
 
-Tin Toy's modernization working tree pins the captured linux/amd64 image that
-was resolved on 2026-08-31:
+Tin Toy commit `97042dd` pins the captured linux/amd64 image that was resolved
+on 2026-08-31 and consumes Tinman image `tinman:modernization-911e472`:
 
 ```text
 registry.gitlab.syncad.com/hive/hive/testnet@sha256:89be820efd988a8864c88225f6a26de92e36086af27dd8dde387d3067627fc4b
@@ -92,10 +92,18 @@ actions. The live fee is used for every account creation and added to Porter's
 funding reserve. Live genesis accounts are excluded from snapshot creation,
 Porter's vesting reserve scales with snapshot size, and imported accounts
 receive the configured minimum vesting needed to update their authorities.
+Imported authorities are normalized under the live combined membership cap,
+with one slot reserved for the configured manager account; this prevents the
+41-member bootstrap failure tracked in [GitLab issue #1](https://gitlab.syncad.com/hive/tinman/-/issues/1)
+on the standard pinned images. Current Hive also has a compile-time
+`HIVE_CONVERTER_BUILD` mode whose limit is 41 so a converter can add a second
+authority without dropping production members. Tinman does not require that
+custom build: it profiles and honors the limit reported by the target node.
 
 The current 2,000-account Tin Toy sample is the scale test for those reserves.
-On Calculon it imported 1,998 non-genesis accounts, activated 21 deterministic
-witnesses, reached majority version 1.29.0, and sustained block production.
+On Calculon, immutable Tinman commit `911e472` and Tin Toy commit `97042dd`
+imported 1,998 non-genesis accounts, activated 21 deterministic witnesses,
+reached majority version 1.29.0, and sustained block production.
 
 Run the reproducible two-image matrix on the configured remote Docker context:
 
