@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 import shutil
 import tempfile
+from unittest import mock
 
 from tinman import prockey
 from tinman import txgen
@@ -256,6 +257,31 @@ class TxgenTest(unittest.TestCase):
                     self.assertGreater(int(value["amount"]["amount"]), 0)
                     self.assertEqual(value["memo"], "Ported balance")
 
+    def test_custom_porter_name_controls_authority_and_signatures(self):
+        conf = {
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
+          "min_vesting_per_account": txgen.amount(1),
+          "total_port_balance" : txgen.amount(200000000000),
+          "accounts": {
+              "porter": {"name": "snapshot-porter"},
+              "manager": {"name": "tnman"},
+          },
+        }
+        keydb = mock.Mock()
+        keydb.get_privkey.return_value = "porter-wif"
+        account_stats = txgen.get_account_stats(conf)
+
+        created = next(txgen.create_accounts(account_stats, conf, keydb))
+        updated = next(txgen.update_accounts(account_stats, conf, keydb))
+
+        create_value = created["operations"][0]["value"]
+        self.assertEqual(
+            create_value["owner"]["account_auths"], [["snapshot-porter", 1]]
+        )
+        self.assertEqual(created["wif_sigs"], ["porter-wif"])
+        self.assertEqual(updated["wif_sigs"], ["porter-wif"])
+        keydb.get_privkey.assert_called_with("snapshot-porter")
+
     def test_port_snapshot_reserves_account_creation_fees(self):
         conf = {
             "account_creation_fee": txgen.amount(30),
@@ -295,7 +321,9 @@ class TxgenTest(unittest.TestCase):
           "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
           "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
-          "accounts": {"manager": {"name": "tnman"}
+          "accounts": {
+              "manager": {"name": "tnman"},
+              "porter": {"name": "porter"},
           }
         }
         keydb = prockey.ProceduralKeyDatabase()
@@ -376,12 +404,16 @@ class TxgenTest(unittest.TestCase):
         
         conf = copy.deepcopy(FULL_CONF)
         conf["snapshot_file"] = self.copy_fixture("test-no-main-accounts-snapshot.json")
-        
+        created_account_names = []
+
         for action in txgen.build_actions(conf):
             cmd, args = action
             
             if cmd == "submit_transaction":
-                for type, value in args["tx"]["operations"]:
-                    if type == 'account_create_operation':
-                        new_account_name = value['new_account_name']
+                for operation in args["tx"]["operations"]:
+                    if operation["type"] == 'account_create_operation':
+                        new_account_name = operation["value"]['new_account_name']
                         self.assertIn(new_account_name, system_account_names)
+                        created_account_names.append(new_account_name)
+
+        self.assertEqual(set(created_account_names), set(system_account_names))

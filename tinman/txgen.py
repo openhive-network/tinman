@@ -307,8 +307,8 @@ def create_accounts(account_stats, conf, keydb, silent=True):
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
     porter = conf["accounts"]["porter"]["name"]
-    porter_wif = keydb.get_privkey("porter")
-    create_auth = {"account_auths" : [["porter", 1]], "key_auths" : [], "weight_threshold" : 1}
+    porter_wif = keydb.get_privkey(porter)
+    create_auth = {"account_auths" : [[porter, 1]], "key_auths" : [], "weight_threshold" : 1}
     accounts_created = 0
     
     with open(conf["snapshot_file"], "rb") as f:
@@ -361,7 +361,8 @@ def update_accounts(account_stats, conf, keydb, silent=True):
     system_account_names = set(get_system_account_names(conf))
     account_names = account_stats["account_names"]
     num_accounts = len(account_names)
-    porter_wif = keydb.get_privkey("porter")
+    porter = conf["accounts"]["porter"]["name"]
+    porter_wif = keydb.get_privkey(porter)
     tnman = conf["accounts"]["manager"]["name"]
     accounts_updated = 0
 
@@ -449,7 +450,9 @@ def build_actions(conf, silent=True):
     predicted_transaction_count = num_accounts * 3
     
     # The predicted number of blocks for accounts.
-    predicted_block_count = predicted_transaction_count // transactions_per_block
+    predicted_block_count = (
+        predicted_transaction_count + transactions_per_block - 1
+    ) // transactions_per_block
     
     # The number of seconds required to setup transactions is a multiple of
     # the initial time it takes to do the get_account_stats() call.

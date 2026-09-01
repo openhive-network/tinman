@@ -29,6 +29,29 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+def list_all_account_names(hive, page_size=1000):
+    names = []
+    start = ""
+    while True:
+        page = hive.database_api.list_accounts(
+            start=start, limit=page_size, order="by_name"
+        ).get("accounts", [])
+        new_names = [
+            account["name"] for account in page
+            if account["name"] > start
+        ]
+        if not new_names:
+            return names
+        names.extend(new_names)
+        start = new_names[-1]
+
+
+def required_transaction_blocks(transaction_count, transactions_per_block):
+    return (
+        transaction_count + transactions_per_block - 1
+    ) // transactions_per_block
+
+
 def hive_client(endpoint, rpc_style, timeout):
     backend = HiveRemoteBackend(
         nodes=[endpoint],
@@ -172,8 +195,10 @@ def fastgen_probe(args, hive, initial):
         snapshot_account_count = sum(
             1 for _ in ijson.items(snapshot_file, "accounts.item")
         )
+    transaction_count = snapshot_account_count * 3
+    transactions_per_block = config_template["transactions_per_block"]
     predicted_block_count = (
-        snapshot_account_count * 3 // config_template["transactions_per_block"]
+        required_transaction_blocks(transaction_count, transactions_per_block)
         + config_template["transaction_witness_setup_pad"]
     )
 
@@ -196,9 +221,7 @@ def fastgen_probe(args, hive, initial):
     )
 
     before_porter = hive.database_api.find_accounts(accounts=["porter"])
-    existing_accounts = hive.database_api.list_accounts(
-        start="", limit=1000, order="by_name"
-    ).get("accounts", [])
+    existing_account_names = list_all_account_names(hive)
     with tempfile.TemporaryDirectory(prefix="tinman-fastgen-") as temporary:
         temporary_path = Path(temporary)
         config = config_template
@@ -208,9 +231,7 @@ def fastgen_probe(args, hive, initial):
         config["hive_address_prefix"] = profile["address_prefix"]
         config["hive_max_authority_membership"] = profile["max_authority_membership"]
         config["hive_block_interval"] = profile["block_interval"]
-        config["existing_account_names"] = [
-            account["name"] for account in existing_accounts
-        ]
+        config["existing_account_names"] = existing_account_names
         head_time = datetime.datetime.fromisoformat(
             profile["head_block_time"].replace("Z", "+00:00")
         )

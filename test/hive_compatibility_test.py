@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
 
 from simple_hive_client.client import HiveInterface, HiveRemoteBackend
 from rpc_contract_test import RecordingHiveNode
@@ -13,6 +14,21 @@ SCRIPT_SPEC.loader.exec_module(hive_compatibility)
 
 
 class HiveCompatibilityTest(unittest.TestCase):
+    def test_required_transaction_blocks_rounds_up(self):
+        self.assertEqual(hive_compatibility.required_transaction_blocks(3, 2), 2)
+
+    def test_list_all_account_names_paginates(self):
+        hive = mock.Mock()
+        hive.database_api.list_accounts.side_effect = [
+            {"accounts": [{"name": "alice"}, {"name": "bob"}]},
+            {"accounts": [{"name": "bob"}, {"name": "carol"}]},
+            {"accounts": [{"name": "carol"}]},
+        ]
+        self.assertEqual(
+            hive_compatibility.list_all_account_names(hive, page_size=2),
+            ["alice", "bob", "carol"],
+        )
+
     def test_read_only_probe_captures_chain_profile(self):
         node = RecordingHiveNode()
         hive = HiveInterface(HiveRemoteBackend(

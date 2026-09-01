@@ -128,53 +128,54 @@ def main(argv):
     parser.add_argument("-tpb", "--transactions-per-block", default="40", dest="transactions_per_block", metavar="INT", help="Transactions per block (default: 40)")
     parser.add_argument("--timeout", default=5.0, type=float, dest="timeout", metavar="SECONDS", help="API timeout")
     parser.add_argument("--realtime", dest="realtime", action="store_true", help="Wait when asked to produce blocks in the future")
-    args = parser.parse_args(argv[1:])
+    cli_args = parser.parse_args(argv[1:])
 
     die_on_fail = False
-    if args.fail_file == "-":
+    if cli_args.fail_file == "-":
         fail_file = sys.stdout
-    elif args.fail_file == "die":
+    elif cli_args.fail_file == "die":
         fail_file = sys.stdout
         die_on_fail = True
     else:
-        fail_file = open(args.fail_file, "w")
+        fail_file = open(cli_args.fail_file, "w")
 
-    if args.input_file == "-":
+    if cli_args.input_file == "-":
         input_file = sys.stdin
     else:
-        input_file = open(args.input_file, "r")
+        input_file = open(cli_args.input_file, "r")
 
-    timeout = args.timeout
+    timeout = cli_args.timeout
 
-    backend = HiveRemoteBackend(nodes=[args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
+    backend = HiveRemoteBackend(nodes=[cli_args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
     hived = HiveInterface(backend)
-    sign_transaction_exe = args.sign_transaction_exe
-    produce_realtime = args.realtime
+    sign_transaction_exe = cli_args.sign_transaction_exe
+    produce_realtime = cli_args.realtime
 
     cached_dgpo = CachedDgpo(hived=hived)
 
-    if args.chain_name != "":
-        chain_id = hashlib.sha256(str.encode(args.chain_name.strip())).digest().hex()
+    if cli_args.chain_name != "":
+        chain_id = hashlib.sha256(str.encode(cli_args.chain_name.strip())).digest().hex()
     else:
         chain_id = None
 
-    if args.chain_id != "":
-        chain_id = args.chain_id.strip()
+    if cli_args.chain_id != "":
+        chain_id = cli_args.chain_id.strip()
 
-    transactions_per_block = int(args.transactions_per_block)
+    transactions_per_block = int(cli_args.transactions_per_block)
     transactions_count = 0
     signer = TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
     metadata = None
 
     for line in input_file:
-        line = line.strip()
-        cmd, args = json.loads(line)
-
+        cmd = None
+        action_args = None
         try:
+            line = line.strip()
+            cmd, action_args = json.loads(line)
             if cmd == "metadata":
-                metadata = args
+                metadata = action_args
                 
-                if args.get("post_backfill"):
+                if action_args.get("post_backfill"):
                     dgpo = cached_dgpo.get()
                     now = timeutil.utc_now()
                     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
@@ -198,13 +199,13 @@ def main(argv):
                     if minor_version < ACTIONS_MINOR_VERSION_SUPPORTED:
                         print("WARNING: Older actions encountered.", file=sys.stderr)
             elif cmd == "wait_blocks":
-                if metadata and args.get("count") == 1 and args.get("miss_blocks"):
-                    if args["miss_blocks"] < metadata["recommend:miss_blocks"]:
-                        args["miss_blocks"] = metadata["recommend:miss_blocks"]
-                generate_blocks(hived, args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                if metadata and action_args.get("count") == 1 and action_args.get("miss_blocks"):
+                    if action_args["miss_blocks"] < metadata["recommend:miss_blocks"]:
+                        action_args["miss_blocks"] = metadata["recommend:miss_blocks"]
+                generate_blocks(hived, action_args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                 cached_dgpo.reset()
             elif cmd == "submit_transaction":
-                tx = args["tx"]
+                tx = action_args["tx"]
                 dgpo = cached_dgpo.get()
                 tx["ref_block_num"] = dgpo["head_block_number"] & 0xFFFF
                 tx["ref_block_prefix"] = struct.unpack_from("<I", unhexlify(dgpo["head_block_id"]), 4)[0]
@@ -222,25 +223,29 @@ def main(argv):
                         raise RuntimeError("wif_sigs is not list")
                     result = signer.sign_transaction(tx, wif)
                     if "error" in result:
-                        print("could not sign transaction", tx, "due to error:", result["error"])
-                    else:
-                        sigs.append(result["result"]["sig"])
+                        raise RuntimeError(
+                            "could not sign transaction: {}".format(result["error"])
+                        )
+                    sigs.append(result["result"]["sig"])
                 tx["signatures"] = sigs
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
 
                 broadcast_transaction(hived, tx)
                 transactions_count += 1
+
+                if (metadata and transactions_count > 0
+                        and transactions_count % transactions_per_block == 0):
+                    generate_blocks(
+                        hived, {"count": 1}, cached_dgpo=cached_dgpo,
+                        produce_realtime=produce_realtime
+                    )
+                    cached_dgpo.reset()
         except Exception as e:
-            fail_file.write(json.dumps([cmd, args, str(e)])+"\n")
+            failed_args = action_args if action_args is not None else {"raw": line}
+            fail_file.write(json.dumps([cmd, failed_args, str(e)])+"\n")
             fail_file.flush()
             if die_on_fail:
                 raise
-        
-        if metadata and transactions_count > 0 and transactions_count % transactions_per_block == 0:
-            generate_blocks(hived, {"count": 1}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
-            cached_dgpo.reset()
-            if cmd == "wait_blocks" and args.get("count") == 1 and not args.get("miss_blocks"):
-                continue
         
 
 if __name__ == "__main__":

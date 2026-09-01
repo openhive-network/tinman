@@ -7,9 +7,10 @@ Create a snapshot of the Hive mainnet state used to initialize a testnet.
 import argparse
 import json
 import sys
-from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface
 
 from . import __version__
+from . import util
 
 DATABASE_API_SINGLE_QUERY_LIMIT = 1000
 MAX_RETRY = 30
@@ -26,42 +27,25 @@ def list_all_accounts(hived):
     """ Generator function providing set of accounts existing in the Main Hive net """
     start = ""
     last = ""
-    retry_count = 0
-    
     while True:
-        retry_count += 1
-        
-        try:
-            result = hived.database_api.list_accounts(
+        result = util.retry_hive_rpc(
+            lambda: hived.database_api.list_accounts(
                 start=start,
                 limit=DATABASE_API_SINGLE_QUERY_LIMIT,
                 order="by_name",
-                )
-            making_progress = False
-            for a in result["accounts"]:
-                if a["name"] > last:
-                    yield a
-                    last = a["name"]
-                    making_progress = True
-                start = last
-            if not making_progress:
-                break
-        except HiveRPCException as e:
-            cause = e.args[0].get("error")
-            if cause:
-                message = cause.get("message")
-                data = cause.get("data")
-                retry = False
-            
-            if message and message in TRANSACTION_SOURCE_RETRYABLE_ERRORS:
-                retry = True
-            
-            if retry and retry_count < MAX_RETRY:
-                print("Recovered (tries: %s): %s" % (retry_count, message), file=sys.stderr)
-                if data:
-                    print(json.dumps(data, indent=2), file=sys.stderr)
-            else:
-                raise e
+            ),
+            TRANSACTION_SOURCE_RETRYABLE_ERRORS,
+            MAX_RETRY,
+        )
+        making_progress = False
+        for a in result["accounts"]:
+            if a["name"] > last:
+                yield a
+                last = a["name"]
+                making_progress = True
+            start = last
+        if not making_progress:
+            break
 
 def list_all_witnesses(hived):
     """ Generator function providing set of witnesses defined in the Main Hive net """

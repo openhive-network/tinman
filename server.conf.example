@@ -1,6 +1,11 @@
 {
  "shared_secret": "xyz-",
  "account_creator": "initminer",
+ "server_auth": {
+  "username": "tinman",
+  "password": ""
+ },
+ "session_secret": "",
 
  "transaction_target": {
   "node": "https://api.openhive.network",

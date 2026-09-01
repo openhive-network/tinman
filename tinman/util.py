@@ -3,9 +3,46 @@
 
 import itertools
 import json
+import os
+import sys
+import time
 
 from . import prockey
-from simple_hive_client.client import HiveRemoteBackend, HiveInterface
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
+
+
+def ensure_distinct_paths(input_path, output_path):
+    """Reject destructive in-place operation for streaming filters."""
+    if input_path == "-" or output_path == "-":
+        return
+    input_path = os.path.realpath(os.path.abspath(input_path))
+    output_path = os.path.realpath(os.path.abspath(output_path))
+    same_file = input_path == output_path
+    if not same_file and os.path.exists(input_path) and os.path.exists(output_path):
+        same_file = os.path.samefile(input_path, output_path)
+    if same_file:
+        raise RuntimeError("input and output files must be different")
+
+
+def retry_hive_rpc(call, retryable_messages, max_attempts, sleep=time.sleep):
+    """Call a Hive RPC operation with bounded retries and backoff."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return call()
+        except HiveRPCException as error:
+            payload = error.args[0] if error.args and isinstance(error.args[0], dict) else {}
+            cause = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+            message = cause.get("message")
+            data = cause.get("data")
+            if message not in retryable_messages or attempt == max_attempts:
+                raise
+            print(
+                "Recovered (tries: {}): {}".format(attempt, message),
+                file=sys.stderr,
+            )
+            if data:
+                print(json.dumps(data, indent=2), file=sys.stderr)
+            sleep(min(0.1 * (2 ** (attempt - 1)), 2.0))
 
 def tag_escape_sequences(s, esc):
     """
@@ -87,7 +124,8 @@ def find_non_substr(s, alphabet="abcdefghijklmnopqrstuvwxyz", start=""):
 
     return result
 
-def iterate_operations_from(hived, is_appbase, min_block_number, max_block_number, searched_operation_names):
+def iterate_operations_from(hived, is_appbase, min_block_number, max_block_number,
+                            searched_operation_names, rpc_call=None):
     """
     Yields operations iterated from provided node's blocks.
     If the last argument is not empty only those operations are returned
@@ -104,16 +142,20 @@ def iterate_operations_from(hived, is_appbase, min_block_number, max_block_numbe
     assert isinstance(max_block_number, int)
     assert isinstance(searched_operation_names, set)
     filter_operation = len(searched_operation_names) > 0
+    if rpc_call is None:
+        rpc_call = lambda call: call()
     for block_num in range(min_block_number, max_block_number):
         if is_appbase:
-            another_block = hived.block_api.get_block(block_num=block_num)
+            another_block = rpc_call(
+                lambda: hived.block_api.get_block(block_num=block_num)
+            )
             if not another_block:
                 print("No block retrieved when requested block no "+str(block_num))
                 return
             actual_block = another_block["block"]
             block_transactions = actual_block["transactions"]
         else:
-            another_block = hived.block_api.get_block(block_num)
+            another_block = rpc_call(lambda: hived.block_api.get_block(block_num))
             if not another_block:
                 print("No block retrieved when requested block no "+str(block_num))
                 return

@@ -3,14 +3,16 @@
 import argparse
 import sys
 import os
+import hmac
 import hashlib
 import json
+import secrets
 import subprocess
 import struct
 import time
 import datetime
 
-from flask import Flask, render_template, flash, request
+from flask import Flask, Response, abort, render_template, flash, request, session
 from wtforms import Form, StringField, validators
 from binascii import hexlify, unhexlify
 
@@ -20,6 +22,33 @@ from . import submit
 
 class ReusableForm(Form):
     new_account_name = StringField('New Account Name:', validators=[validators.DataRequired()])
+
+
+def require_server_security(conf):
+    auth = conf.get("server_auth", {})
+    username = auth.get("username") if isinstance(auth, dict) else None
+    password = auth.get("password") if isinstance(auth, dict) else None
+    session_secret = conf.get("session_secret")
+    if not all(isinstance(value, str) and value for value in (
+            username, password, session_secret)):
+        raise RuntimeError(
+            "server_auth username/password and session_secret are required"
+        )
+    return username, password, session_secret
+
+
+def authorized(request_authorization, username, password):
+    return bool(
+        request_authorization
+        and hmac.compare_digest(request_authorization.username or "", username)
+        and hmac.compare_digest(request_authorization.password or "", password)
+    )
+
+
+def signature_from_result(result):
+    if "error" in result:
+        raise RuntimeError("transaction signer failed: {}".format(result["error"]))
+    return result["result"]["sig"]
 
 def main(argv):
     parser = argparse.ArgumentParser(prog=argv[0], description="Web Server")
@@ -39,6 +68,7 @@ def main(argv):
     node = conf["transaction_target"]["node"]
     shared_secret = conf["shared_secret"]
     account_creator = conf["account_creator"]
+    auth_username, auth_password, session_secret = require_server_security(conf)
     result_bytes = subprocess.check_output([args.get_dev_key_exe, shared_secret, "active-" + account_creator])
     result_str = result_bytes.decode("utf-8")
     result_json = json.loads(result_str.strip())
@@ -58,10 +88,17 @@ def main(argv):
     signer = submit.TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
 
     app = Flask(__name__)
-    app.debug = True
-    
-    # Temporary development secret key (for web forms).
-    app.config['SECRET_KEY'] = '5333d026583fdd09f413d472b29ed39e'
+    app.debug = bool(conf.get("debug", False))
+    app.config['SECRET_KEY'] = session_secret
+
+    @app.before_request
+    def authenticate():
+        if authorized(request.authorization, auth_username, auth_password):
+            return None
+        return Response(
+            "Authentication required\n", 401,
+            {"WWW-Authenticate": 'Basic realm="Tinman"'},
+        )
  
     @app.route("/account_create", methods=['GET', 'POST'])
     def account_create():
@@ -69,7 +106,12 @@ def main(argv):
      
         print(form.errors)
         if request.method == 'POST':
-            new_account_name = request.form['new_account_name']
+            expected_csrf_token = session.get("csrf_token", "")
+            submitted_csrf_token = request.form.get("csrf_token", "")
+            if not expected_csrf_token or not hmac.compare_digest(
+                    expected_csrf_token, submitted_csrf_token):
+                abort(400, "invalid CSRF token")
+            new_account_name = form.new_account_name.data
      
             if form.validate():
                 key_types = ["owner", "active", "posting", "memo"]
@@ -112,10 +154,11 @@ def main(argv):
                 tx["expiration"] = expiration_str
 
                 result = signer.sign_transaction(tx, account_creator_wif)
-                if "error" in result:
-                    print("could not sign transaction", tx, "due to error:", result["error"])
-                else:
-                    tx["signatures"].append(result["result"]["sig"])
+                try:
+                    tx["signatures"].append(signature_from_result(result))
+                except RuntimeError as error:
+                    flash("Unable to create account: " + str(error))
+                    return render_template('account_create.html', form=form)
                 
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
                 
@@ -137,9 +180,14 @@ def main(argv):
             else:
                 flash('All the form fields are required.')
      
+        if "csrf_token" not in session:
+            session["csrf_token"] = secrets.token_urlsafe(32)
         return render_template('account_create.html', form=form)
     
-    app.run()
+    app.run(
+        host=conf.get("host", "127.0.0.1"),
+        port=int(conf.get("port", 5000)),
+    )
 
 if __name__ == "__main__":
     main(sys.argv)

@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 import time
-from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface
 
 from . import prockey
 from . import util
@@ -19,6 +19,12 @@ TRANSACTION_SOURCE_RETRYABLE_ERRORS = [
 ]
 
 MAX_RETRY = 30
+
+
+def retry_rpc(call):
+    return util.retry_hive_rpc(
+        call, TRANSACTION_SOURCE_RETRYABLE_ERRORS, MAX_RETRY
+    )
 
 def str2bool(str_arg):
     """
@@ -36,7 +42,7 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     is_appbase = str2bool(conf["transaction_source"]["appbase"])
     backend = HiveRemoteBackend(nodes=[source_node], appbase=is_appbase)
     hived = HiveInterface(backend)
-    dgpo = hived.database_api.get_dynamic_global_properties()
+    dgpo = retry_rpc(hived.database_api.get_dynamic_global_properties)
     
     if min_block == 0:
         min_block = dgpo["head_block_number"]
@@ -51,7 +57,9 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     ported_types = set([op["type"] for op in ported_operations])
     """ Positive value of max_block means get from [min_block_number,max_block_number) range and stop """
     if max_block > 0: 
-        for op in util.iterate_operations_from(hived, is_appbase, min_block, max_block, ported_types):
+        for op in util.iterate_operations_from(
+                hived, is_appbase, min_block, max_block, ported_types,
+                rpc_call=retry_rpc):
             yield op_for_role(op, conf, keydb, ported_operations)
         return
     """
@@ -60,13 +68,15 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     """
     old_head_block = min_block
     while True:
-        dgpo = hived.database_api.get_dynamic_global_properties()
+        dgpo = retry_rpc(hived.database_api.get_dynamic_global_properties)
         new_head_block = dgpo["head_block_number"]
         while old_head_block == new_head_block:
             time.sleep(1) # Theoretically 3 seconds, but most probably we won't have to wait that long.
-            dgpo = hived.database_api.get_dynamic_global_properties()
+            dgpo = retry_rpc(hived.database_api.get_dynamic_global_properties)
             new_head_block = dgpo["head_block_number"]
-        for op in util.iterate_operations_from(hived, is_appbase, old_head_block, new_head_block, ported_types):
+        for op in util.iterate_operations_from(
+                hived, is_appbase, old_head_block, new_head_block, ported_types,
+                rpc_call=retry_rpc):
             yield op_for_role(op, conf, keydb, ported_operations)
         old_head_block = new_head_block
     return
@@ -103,33 +113,12 @@ def build_actions(conf, min_block, max_block, from_blocks_ago, to_blocks_ago):
     Packs transactions rebuilt with operations acquired from source node into blocks of configured size.
     """
     keydb = prockey.ProceduralKeyDatabase()
-    retry_count = 0
-    
-    while True:
-        retry_count += 1
-        
-        try:
-            for b in util.batch(repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blocks_ago), conf["transactions_per_block"]):
-                for tx in b:
-                    yield ["submit_transaction", {"tx" : tx}]
-                    retry_count = 0
-            break
-        except HiveRPCException as e:
-            cause = e.args[0].get("error")
-            if cause:
-                message = cause.get("message")
-                data = cause.get("data")
-                retry = False
-            
-            if message and message in TRANSACTION_SOURCE_RETRYABLE_ERRORS:
-                retry = True
-            
-            if retry and retry_count < MAX_RETRY:
-                print("Recovered (tries: %s): %s" % (retry_count, message), file=sys.stderr)
-                if data:
-                    print(json.dumps(data, indent=2), file=sys.stderr)
-            else:
-                raise e
+    operations = repack_operations(
+        conf, keydb, min_block, max_block, from_blocks_ago, to_blocks_ago
+    )
+    for batch in util.batch(operations, conf["transactions_per_block"]):
+        for tx in batch:
+            yield ["submit_transaction", {"tx" : tx}]
     return
 
 def main(argv):
