@@ -52,6 +52,17 @@ def add_asset_units(asset, units):
     return amount(satoshis(asset) + units)
 
 
+def porter_vesting(conf, account_stats):
+    configured = conf["accounts"]["porter"]["vesting"]
+    per_account = conf.get("porter_vesting_per_snapshot_account", amount(0))
+    if per_account.get("nai") != HIVE_LIQUID_NAI or per_account.get("precision") != 3:
+        raise RuntimeError(
+            "porter_vesting_per_snapshot_account must be a precision-3 HIVE asset"
+        )
+    required = satoshis(per_account) * len(account_stats["account_names"])
+    return amount(max(satoshis(configured), required))
+
+
 def replace_key_prefix(key, prefix):
     if not isinstance(key, str) or len(key) <= 3:
         raise RuntimeError("invalid public key")
@@ -88,7 +99,7 @@ def normalize_authority(authority, account_names, system_account_names,
         "weight_threshold": threshold,
     }
 
-def create_system_accounts(conf, keydb, name):
+def create_system_accounts(conf, keydb, name, vesting_override=None):
     hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
     desc = conf["accounts"][name]
     for index in range(desc.get("count", 1)):
@@ -105,7 +116,7 @@ def create_system_accounts(conf, keydb, name):
            }}, {"type" : "transfer_to_vesting_operation", "value" : {
             "from" : hive_init_miner_name,
             "to" : name,
-            "amount" : desc["vesting"],
+            "amount" : vesting_override or desc["vesting"],
            }}],
            "wif_sigs" : [keydb.get_privkey(desc["creator"])]}
 
@@ -160,7 +171,8 @@ def build_setup_transactions(account_stats, conf, keydb, silent=True):
     yield from create_system_accounts(conf, keydb, "init")
     yield from create_system_accounts(conf, keydb, "elector")
     yield from create_system_accounts(conf, keydb, "manager")
-    yield from create_system_accounts(conf, keydb, "porter")
+    yield from create_system_accounts(
+        conf, keydb, "porter", porter_vesting(conf, account_stats))
     yield from port_snapshot(account_stats, conf, keydb, silent)
 
 def build_initminer_tx(conf, keydb):
@@ -202,6 +214,7 @@ def get_system_account_names(conf):
         for index in range(desc.get("count", 1)):
             name = desc["name"].format(index=index)
             yield name
+    yield from conf.get("existing_account_names", [])
     return
 
 def get_account_stats(conf, silent=True):
@@ -528,7 +541,7 @@ def log_config(conf, file):
       "num_blocks_to_clear_witness_round", "transaction_witness_setup_pad",
       "hive_max_authority_membership", "hive_address_prefix",
       "hive_init_miner_name", "hive_genesis_timestamp",
-      "account_creation_fee"]
+      "account_creation_fee", "porter_vesting_per_snapshot_account"]
     
     print("Using config:", file, file=sys.stderr)
     

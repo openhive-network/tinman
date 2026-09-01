@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 
+import ijson
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -129,7 +131,7 @@ def run(command, *, cwd):
     return result
 
 
-def fastgen_chain_profile(hive, initial):
+def fastgen_chain_profile(hive, initial, lead_blocks=0):
     preflight_block_generated = initial["head_block_number"] == 0
     if preflight_block_generated:
         head_time = datetime.datetime.fromisoformat(
@@ -137,11 +139,12 @@ def fastgen_chain_profile(hive, initial):
         )
         if head_time.tzinfo is None:
             head_time = head_time.replace(tzinfo=datetime.timezone.utc)
+        target_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            seconds=lead_blocks * initial["block_interval"]
+        )
         miss_blocks = max(
-            int(
-                (datetime.datetime.now(datetime.timezone.utc) - head_time).total_seconds()
-                / initial["block_interval"]
-            ) - 1,
+            int((target_time - head_time).total_seconds() / initial["block_interval"])
+            - 1,
             0,
         )
         hive.debug_node_api.debug_generate_blocks(
@@ -164,9 +167,22 @@ def fastgen_probe(args, hive, initial):
     require(snapshot.is_file(), "snapshot fixture was not found: {}".format(snapshot))
     require(initial["is_testnet"] is True, "fastgen refuses to mutate a non-testnet chain")
 
+    config_template = json.loads(DEFAULT_CONFIG.read_text())
+    with snapshot.open("rb") as snapshot_file:
+        snapshot_account_count = sum(
+            1 for _ in ijson.items(snapshot_file, "accounts.item")
+        )
+    predicted_block_count = (
+        snapshot_account_count * 3 // config_template["transactions_per_block"]
+        + config_template["transaction_witness_setup_pad"]
+    )
+
     # Newer testnets apply their configured hardforks in block 1. Since that can
     # change the witness median fee, cross the boundary before generating actions.
-    profile, preflight_block_generated = fastgen_chain_profile(hive, initial)
+    # Leave enough wall-clock room for txgen's generated blocks to remain valid.
+    profile, preflight_block_generated = fastgen_chain_profile(
+        hive, initial, lead_blocks=predicted_block_count
+    )
 
     require(profile["chain_id"], "database_api.get_version omitted chain_id")
     require(profile["address_prefix"], "database_api.get_config omitted address prefix")
@@ -180,15 +196,21 @@ def fastgen_probe(args, hive, initial):
     )
 
     before_porter = hive.database_api.find_accounts(accounts=["porter"])
+    existing_accounts = hive.database_api.list_accounts(
+        start="", limit=1000, order="by_name"
+    ).get("accounts", [])
     with tempfile.TemporaryDirectory(prefix="tinman-fastgen-") as temporary:
         temporary_path = Path(temporary)
-        config = json.loads(DEFAULT_CONFIG.read_text())
+        config = config_template
         config["snapshot_file"] = str(snapshot)
         config["backfill_file"] = None
         config["account_creation_fee"] = profile["account_creation_fee"]
         config["hive_address_prefix"] = profile["address_prefix"]
         config["hive_max_authority_membership"] = profile["max_authority_membership"]
         config["hive_block_interval"] = profile["block_interval"]
+        config["existing_account_names"] = [
+            account["name"] for account in existing_accounts
+        ]
         head_time = datetime.datetime.fromisoformat(
             profile["head_block_time"].replace("Z", "+00:00")
         )

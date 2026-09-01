@@ -7,11 +7,12 @@
  "hive_address_prefix" : "TST",
  "hive_init_miner_name" : "initminer",
  "account_creation_fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
+ "porter_vesting_per_snapshot_account" : {"amount" : "20000", "precision" : 3, "nai" : "@@000000021"},
 
  "snapshot_file" : "snapshot.json",
  "backfill_file" : "backfill.actions",
 
- "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
+ "min_vesting_per_account" : {"amount" : "5000", "precision" : 3, "nai" : "@@000000021"},
  "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
 
  "accounts" :

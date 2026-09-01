@@ -39,8 +39,8 @@ The current stable test target is:
 registry.gitlab.syncad.com/hive/hive/testnet:1.28.7@sha256:4b5720852668ab9cbdd41e2f16543c3ccd30fb3fc217174d312f38ff86867c79
 ```
 
-Tin Toy currently names `registry.gitlab.syncad.com/hive/hive/testnet:latest`.
-On 2026-08-31 its linux/amd64 manifest resolved to:
+Tin Toy's modernization working tree pins the captured linux/amd64 image that
+was resolved on 2026-08-31:
 
 ```text
 registry.gitlab.syncad.com/hive/hive/testnet@sha256:89be820efd988a8864c88225f6a26de92e36086af27dd8dde387d3067627fc4b
@@ -86,9 +86,16 @@ generates actions from the small fixture, substitutes keys, submits signed
 transactions, advances blocks through `debug_node_api`, and verifies the
 resulting `porter` account. It refuses to run unless the Hive image is supplied
 by digest. On a pristine chain it first advances chain time through the initial
-hardfork boundary, then re-reads the live profile before generating actions.
-The live fee is used for every account creation and added to Porter's funding
-reserve.
+hardfork boundary, leaving enough time before wall clock for the predicted
+snapshot action stream, then re-reads the live profile before generating
+actions. The live fee is used for every account creation and added to Porter's
+funding reserve. Live genesis accounts are excluded from snapshot creation,
+Porter's vesting reserve scales with snapshot size, and imported accounts
+receive the configured minimum vesting needed to update their authorities.
+
+The current 2,000-account Tin Toy sample is the scale test for those reserves.
+On Calculon it imported 1,998 non-genesis accounts, activated 21 deterministic
+witnesses, reached majority version 1.29.0, and sustained block production.
 
 Run the reproducible two-image matrix on the configured remote Docker context:
 

@@ -18,9 +18,10 @@ FULL_CONF = {
     "hive_address_prefix" : "TST",
     "hive_init_miner_name" : 'initminer',
     "account_creation_fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
+    "porter_vesting_per_snapshot_account" : {"amount" : "20000", "precision" : 3, "nai" : "@@000000021"},
     "snapshot_file" : None,
     "backfill_file" : None,
-    "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
+    "min_vesting_per_account" : {"amount" : "5000", "precision" : 3, "nai" : "@@000000021"},
     "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
     "accounts" : {
         "initminer" : {
@@ -86,6 +87,26 @@ class TxgenTest(unittest.TestCase):
         transaction = next(txgen.create_system_accounts(conf, keydb, "porter"))
         self.assertEqual(
             transaction["operations"][0]["value"]["fee"], txgen.amount(30)
+        )
+
+    def test_porter_vesting_scales_with_snapshot_size(self):
+        conf = {
+            "porter_vesting_per_snapshot_account": txgen.amount(20000),
+            "accounts": {"porter": {"vesting": txgen.amount(1000000)}},
+        }
+        account_stats = {"account_names": set(range(2000))}
+        self.assertEqual(
+            txgen.porter_vesting(conf, account_stats), txgen.amount(40000000)
+        )
+
+    def test_porter_vesting_keeps_larger_configured_minimum(self):
+        conf = {
+            "porter_vesting_per_snapshot_account": txgen.amount(20000),
+            "accounts": {"porter": {"vesting": txgen.amount(1000000)}},
+        }
+        account_stats = {"account_names": {"alice"}}
+        self.assertEqual(
+            txgen.porter_vesting(conf, account_stats), txgen.amount(1000000)
         )
     
     def test_create_witnesses(self):
@@ -181,6 +202,18 @@ class TxgenTest(unittest.TestCase):
         self.assertEqual(account_stats["account_names"], expected_account_names)
         self.assertEqual(account_stats["total_vests"], 103927120221962824)
         self.assertEqual(account_stats["total_hive"], 60859732440)
+
+    def test_get_account_stats_excludes_live_genesis_accounts(self):
+        conf = {
+          "snapshot_file" : self.copy_fixture("test-snapshot.json"),
+          "existing_account_names": ["steemit"],
+          "accounts": {}
+        }
+
+        account_stats = txgen.get_account_stats(conf)
+
+        self.assertNotIn("steemit", account_stats["account_names"])
+        self.assertEqual(len(account_stats["account_names"]), 20)
 
     def test_get_proportions(self):
         conf = {
