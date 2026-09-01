@@ -17,6 +17,7 @@ FULL_CONF = {
     "hive_max_authority_membership" : 10,
     "hive_address_prefix" : "TST",
     "hive_init_miner_name" : 'initminer',
+    "account_creation_fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
     "snapshot_file" : None,
     "backfill_file" : None,
     "min_vesting_per_account" : {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
@@ -68,6 +69,24 @@ class TxgenTest(unittest.TestCase):
 
     def test_create_system_accounts_bad_args(self):
         self.assertRaises(TypeError, txgen.create_system_accounts)
+
+    def test_create_system_accounts_uses_configured_fee(self):
+        keydb = prockey.ProceduralKeyDatabase()
+        conf = {
+            "account_creation_fee": {
+                "amount": "30", "precision": 3, "nai": "@@000000021"
+            },
+            "accounts": {
+                "porter": {
+                    "name": "porter", "creator": "initminer",
+                    "vesting": txgen.amount(1000),
+                }
+            },
+        }
+        transaction = next(txgen.create_system_accounts(conf, keydb, "porter"))
+        self.assertEqual(
+            transaction["operations"][0]["value"]["fee"], txgen.amount(30)
+        )
     
     def test_create_witnesses(self):
         keydb = prockey.ProceduralKeyDatabase()
@@ -204,6 +223,39 @@ class TxgenTest(unittest.TestCase):
                     self.assertGreater(int(value["amount"]["amount"]), 0)
                     self.assertEqual(value["memo"], "Ported balance")
 
+    def test_port_snapshot_reserves_account_creation_fees(self):
+        conf = {
+            "account_creation_fee": txgen.amount(30),
+            "total_port_balance": txgen.amount(1000),
+            "accounts": {
+                "initminer": {"name": "initminer"},
+                "porter": {"name": "porter"},
+            },
+        }
+        account_stats = {"account_names": {"alice", "bob"}}
+        transaction = next(txgen.port_snapshot(
+            account_stats, conf, prockey.ProceduralKeyDatabase()
+        ))
+        transfer = transaction["operations"][0]["value"]
+        self.assertEqual(transfer["amount"], txgen.amount(1060))
+
+    def test_normalize_authority_enforces_combined_membership_limit(self):
+        authority = {
+            "weight_threshold": 2,
+            "account_auths": [["alice", 1], ["missing", 1]],
+            "key_auths": [["STMabc", 1], ["STMdef", 1]],
+        }
+        normalized = txgen.normalize_authority(
+            authority, {"alice"}, set(), "tnman", "HIVE", 3
+        )
+        self.assertEqual(
+            normalized["account_auths"], [["alice", 1], ["tnman", 2]]
+        )
+        self.assertEqual(normalized["key_auths"], [["HIVEabc", 1]])
+        self.assertEqual(
+            len(normalized["account_auths"]) + len(normalized["key_auths"]), 3
+        )
+
 
     def test_update_accounts(self):
         conf = {
@@ -228,6 +280,12 @@ class TxgenTest(unittest.TestCase):
                 self.assertLessEqual(len(value["owner"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
                 self.assertLessEqual(len(value["active"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
                 self.assertLessEqual(len(value["posting"]["key_auths"]), txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP)
+                for authority_name in ("owner", "active", "posting"):
+                    authority = value[authority_name]
+                    self.assertLessEqual(
+                        len(authority["account_auths"]) + len(authority["key_auths"]),
+                        txgen.HIVE_MAX_AUTHORITY_MEMBERSHIP,
+                    )
             
     def test_build_actions(self):
         conf = copy.deepcopy(FULL_CONF)

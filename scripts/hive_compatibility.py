@@ -19,6 +19,7 @@ from simple_hive_client.client import HiveInterface, HiveRemoteBackend
 
 DEFAULT_SNAPSHOT = PROJECT_ROOT / "test" / "test-no-main-accounts-snapshot.json"
 DEFAULT_CONFIG = PROJECT_ROOT / "txgen.conf.example"
+DEBUG_KEY = "5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n"
 
 
 def require(condition, message):
@@ -40,6 +41,9 @@ def hive_client(endpoint, rpc_style, timeout):
 
 def read_only_probe(hive):
     version = hive.database_api.get_version()
+    config = hive.database_api.get_config()
+    hardfork = hive.database_api.get_hardfork_properties()
+    witness_schedule = hive.database_api.get_witness_schedule()
     dgpo = hive.database_api.get_dynamic_global_properties()
     accounts = hive.database_api.list_accounts(
         start="", limit=1, order="by_name"
@@ -49,6 +53,16 @@ def read_only_probe(hive):
     )
 
     require(isinstance(version, dict), "database_api.get_version returned no object")
+    require(isinstance(config, dict), "database_api.get_config returned no object")
+    require(
+        isinstance(hardfork.get("current_hardfork_version"), str),
+        "hardfork properties omitted current_hardfork_version",
+    )
+    creation_fee = witness_schedule.get("median_props", {}).get(
+        "account_creation_fee"
+    )
+    require(isinstance(creation_fee, dict), "witness schedule omitted account creation fee")
+    require("amount" in creation_fee, "account creation fee omitted amount")
     require(
         isinstance(dgpo.get("head_block_number"), int),
         "dynamic global properties omitted head_block_number",
@@ -70,6 +84,13 @@ def read_only_probe(hive):
 
     return {
         "hived_version": version,
+        "chain_id": version.get("chain_id"),
+        "active_hardfork": hardfork["current_hardfork_version"],
+        "is_testnet": config.get("IS_TEST_NET", config.get("HIVE_IS_TEST_NET")),
+        "address_prefix": config.get("HIVE_ADDRESS_PREFIX"),
+        "max_authority_membership": config.get("HIVE_MAX_AUTHORITY_MEMBERSHIP"),
+        "block_interval": config.get("HIVE_BLOCK_INTERVAL"),
+        "account_creation_fee": creation_fee,
         "head_block_number": dgpo["head_block_number"],
         "head_block_id": dgpo["head_block_id"],
         "head_block_time": dgpo["time"],
@@ -100,10 +121,36 @@ def run(command, *, cwd):
     if result.returncode != 0:
         raise RuntimeError(
             "Command failed with status {}:\n{}\n{}".format(
-                result.returncode, result.stdout[-4000:], result.stderr[-4000:]
+                result.returncode,
+                result.stdout[:4000] + result.stdout[-4000:],
+                result.stderr[:4000] + result.stderr[-4000:],
             )
         )
     return result
+
+
+def fastgen_chain_profile(hive, initial):
+    preflight_block_generated = initial["head_block_number"] == 0
+    if preflight_block_generated:
+        head_time = datetime.datetime.fromisoformat(
+            initial["head_block_time"].replace("Z", "+00:00")
+        )
+        if head_time.tzinfo is None:
+            head_time = head_time.replace(tzinfo=datetime.timezone.utc)
+        miss_blocks = max(
+            int(
+                (datetime.datetime.now(datetime.timezone.utc) - head_time).total_seconds()
+                / initial["block_interval"]
+            ) - 1,
+            0,
+        )
+        hive.debug_node_api.debug_generate_blocks(
+            debug_key=DEBUG_KEY,
+            count=1,
+            skip=0,
+            miss_blocks=miss_blocks,
+        )
+    return read_only_probe(hive), preflight_block_generated
 
 
 def fastgen_probe(args, hive, initial):
@@ -115,6 +162,22 @@ def fastgen_probe(args, hive, initial):
     signer = resolve_executable(args.signer, "--signer")
     snapshot = Path(args.snapshot).resolve()
     require(snapshot.is_file(), "snapshot fixture was not found: {}".format(snapshot))
+    require(initial["is_testnet"] is True, "fastgen refuses to mutate a non-testnet chain")
+
+    # Newer testnets apply their configured hardforks in block 1. Since that can
+    # change the witness median fee, cross the boundary before generating actions.
+    profile, preflight_block_generated = fastgen_chain_profile(hive, initial)
+
+    require(profile["chain_id"], "database_api.get_version omitted chain_id")
+    require(profile["address_prefix"], "database_api.get_config omitted address prefix")
+    require(
+        isinstance(profile["max_authority_membership"], int),
+        "database_api.get_config omitted authority membership limit",
+    )
+    require(
+        isinstance(profile["block_interval"], int),
+        "database_api.get_config omitted block interval",
+    )
 
     before_porter = hive.database_api.find_accounts(accounts=["porter"])
     with tempfile.TemporaryDirectory(prefix="tinman-fastgen-") as temporary:
@@ -122,6 +185,19 @@ def fastgen_probe(args, hive, initial):
         config = json.loads(DEFAULT_CONFIG.read_text())
         config["snapshot_file"] = str(snapshot)
         config["backfill_file"] = None
+        config["account_creation_fee"] = profile["account_creation_fee"]
+        config["hive_address_prefix"] = profile["address_prefix"]
+        config["hive_max_authority_membership"] = profile["max_authority_membership"]
+        config["hive_block_interval"] = profile["block_interval"]
+        head_time = datetime.datetime.fromisoformat(
+            profile["head_block_time"].replace("Z", "+00:00")
+        )
+        if head_time.tzinfo is None:
+            head_time = head_time.replace(tzinfo=datetime.timezone.utc)
+        config["hive_genesis_timestamp"] = int(
+            head_time.timestamp()
+            - profile["head_block_number"] * profile["block_interval"]
+        )
         config_path = temporary_path / "txgen.json"
         actions_path = temporary_path / "txgen.actions"
         keyed_path = temporary_path / "keyed.actions"
@@ -149,7 +225,7 @@ def fastgen_probe(args, hive, initial):
             "--output-file",
             str(keyed_path),
         ], cwd=PROJECT_ROOT)
-        submit_result = run([
+        submit_command = [
             sys.executable,
             "-m",
             "tinman",
@@ -158,18 +234,21 @@ def fastgen_probe(args, hive, initial):
             args.endpoint,
             "--signer",
             signer,
+            "--chain-id",
+            profile["chain_id"],
             "--input-file",
             str(keyed_path),
             "--fail-file",
             "die",
             "--timeout",
             str(args.timeout),
-        ], cwd=PROJECT_ROOT)
+        ]
+        submit_result = run(submit_command, cwd=PROJECT_ROOT)
 
     final = read_only_probe(hive)
     after_porter = hive.database_api.find_accounts(accounts=["porter"])
     require(
-        final["head_block_number"] > initial["head_block_number"],
+        final["head_block_number"] > profile["head_block_number"],
         "the fastgen pipeline did not advance the head block",
     )
     require(
@@ -177,10 +256,18 @@ def fastgen_probe(args, hive, initial):
         "the fastgen pipeline did not leave the porter account on chain",
     )
     return {
-        "head_block_number_before": initial["head_block_number"],
+        "head_block_number_before": profile["head_block_number"],
         "head_block_number_after": final["head_block_number"],
         "porter_existed_before": bool(before_porter.get("accounts")),
         "porter_exists_after": True,
+        "chain_profile": {
+            "active_hardfork": profile["active_hardfork"],
+            "account_creation_fee": profile["account_creation_fee"],
+            "address_prefix": profile["address_prefix"],
+            "max_authority_membership": profile["max_authority_membership"],
+            "block_interval": profile["block_interval"],
+        },
+        "preflight_block_generated": preflight_block_generated,
         "submit_output_lines": len(submit_result.stdout.splitlines()),
     }
 

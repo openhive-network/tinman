@@ -26,6 +26,28 @@ class RecordingHiveNode:
         request = json.loads(data.decode("ascii"))
         self.requests.append((url, timeout, request))
         result_by_method = {
+            "database_api.get_version": {
+                "blockchain_version": "1.29.0",
+                "chain_id": "test-chain-id",
+            },
+            "database_api.get_config": {
+                "IS_TEST_NET": True,
+                "HIVE_ADDRESS_PREFIX": "TST",
+                "HIVE_MAX_AUTHORITY_MEMBERSHIP": 40,
+                "HIVE_BLOCK_INTERVAL": 3,
+            },
+            "database_api.get_hardfork_properties": {
+                "current_hardfork_version": "1.28.0",
+            },
+            "database_api.get_witness_schedule": {
+                "median_props": {
+                    "account_creation_fee": {
+                        "amount": "30",
+                        "precision": 3,
+                        "nai": "@@000000021",
+                    }
+                }
+            },
             "database_api.list_accounts": {
                 "accounts": [{
                     "name": "alice",
@@ -74,6 +96,24 @@ class RpcContractTest(unittest.TestCase):
         self.assertEqual(request["params"], params)
 
     def test_database_api_contracts(self):
+        version = self.hive.database_api.get_version()
+        self.assertEqual(version["chain_id"], "test-chain-id")
+        self.assert_last_request("database_api.get_version", {})
+
+        config = self.hive.database_api.get_config()
+        self.assertEqual(config["HIVE_MAX_AUTHORITY_MEMBERSHIP"], 40)
+        self.assert_last_request("database_api.get_config", {})
+
+        hardfork = self.hive.database_api.get_hardfork_properties()
+        self.assertEqual(hardfork["current_hardfork_version"], "1.28.0")
+        self.assert_last_request("database_api.get_hardfork_properties", {})
+
+        schedule = self.hive.database_api.get_witness_schedule()
+        self.assertEqual(
+            schedule["median_props"]["account_creation_fee"]["amount"], "30"
+        )
+        self.assert_last_request("database_api.get_witness_schedule", {})
+
         accounts = self.hive.database_api.list_accounts(
             start="", limit=1, order="by_name"
         )

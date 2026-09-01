@@ -6,6 +6,7 @@
  "hive_max_authority_membership" : 10,
  "hive_address_prefix" : "TST",
  "hive_init_miner_name" : "initminer",
+ "account_creation_fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
 
  "snapshot_file" : "snapshot.json",
  "backfill_file" : "backfill.actions",

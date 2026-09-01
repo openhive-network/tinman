@@ -28,6 +28,65 @@ DENOM = 10**12        # we need stupidly high precision because VESTS
 HIVE_BLOCKS_PER_DAY = 28800
 HIVE_ADDRESS_PREFIX = "TST"
 HIVE_INIT_MINER_NAME = "initminer"
+HIVE_LIQUID_NAI = "@@000000021"
+
+
+def account_creation_fee(conf):
+    fee = conf.get("account_creation_fee", amount(0))
+    if not isinstance(fee, dict):
+        raise RuntimeError("account_creation_fee must be an asset object")
+    if fee.get("nai") != HIVE_LIQUID_NAI or fee.get("precision") != 3:
+        raise RuntimeError("account_creation_fee must be a precision-3 HIVE asset")
+    try:
+        fee_amount = int(fee["amount"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("account_creation_fee has an invalid amount") from error
+    if fee_amount < 0:
+        raise RuntimeError("account_creation_fee cannot be negative")
+    return amount(fee_amount)
+
+
+def add_asset_units(asset, units):
+    if asset.get("nai") != HIVE_LIQUID_NAI or asset.get("precision") != 3:
+        raise RuntimeError("expected a precision-3 HIVE asset")
+    return amount(satoshis(asset) + units)
+
+
+def replace_key_prefix(key, prefix):
+    if not isinstance(key, str) or len(key) <= 3:
+        raise RuntimeError("invalid public key")
+    return prefix + key[3:]
+
+
+def normalize_authority(authority, account_names, system_account_names,
+                        manager_name, address_prefix, membership_limit):
+    if membership_limit < 1:
+        raise RuntimeError("hive_max_authority_membership must be positive")
+    try:
+        threshold = int(authority["weight_threshold"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("authority has an invalid weight threshold") from error
+    if threshold < 1:
+        raise RuntimeError("authority weight threshold must be positive")
+
+    account_auths = []
+    for account_name, weight in authority.get("account_auths", []):
+        if account_name in account_names and account_name not in system_account_names:
+            account_auths.append([account_name, weight])
+
+    # The manager authority guarantees that each ported account remains operable.
+    account_auths = account_auths[:membership_limit - 1]
+    account_auths.append([manager_name, threshold])
+    remaining = membership_limit - len(account_auths)
+    key_auths = [
+        [replace_key_prefix(key, address_prefix), weight]
+        for key, weight in authority.get("key_auths", [])[:remaining]
+    ]
+    return {
+        "account_auths": account_auths,
+        "key_auths": key_auths,
+        "weight_threshold": threshold,
+    }
 
 def create_system_accounts(conf, keydb, name):
     hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
@@ -35,7 +94,7 @@ def create_system_accounts(conf, keydb, name):
     for index in range(desc.get("count", 1)):
         name = desc["name"].format(index=index)
         yield {"operations" : [{"type" : "account_create_operation", "value" : {
-            "fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
+            "fee" : account_creation_fee(conf),
             "creator" : desc["creator"],
             "new_account_name" : name,
             "owner" : keydb.get_authority(name, "owner"),
@@ -250,13 +309,13 @@ def create_accounts(account_stats, conf, keydb, silent=True):
             vesting_amount = max(vesting_amount, min_vesting_per_account)
             
             ops = [{"type" : "account_create_operation", "value" : {
-              "fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
+              "fee" : account_creation_fee(conf),
               "creator" : porter,
               "new_account_name" : name,
               "owner" : create_auth,
               "active" : create_auth,
               "posting" : create_auth,
-              "memo_key" : hive_address_prefix + a["memo_key"][3:],
+              "memo_key" : replace_key_prefix(a["memo_key"], hive_address_prefix),
               "json_metadata" : "",
              }}, {"type" : "transfer_to_vesting_operation", "value" : {
               "from" : porter,
@@ -298,41 +357,32 @@ def update_accounts(account_stats, conf, keydb, silent=True):
             if a["name"] in system_account_names:
                 continue
             
-            cur_owner_auth = a["owner"]
-            new_owner_auth = cur_owner_auth.copy()
-            cur_active_auth = a["active"]
-            new_active_auth = cur_active_auth.copy()
-            cur_posting_auth = a["posting"]
-            new_posting_auth = cur_posting_auth.copy()
-            
-            # filter to only include existing accounts
-            for aw in cur_owner_auth["account_auths"][:(hive_max_authority_membership - 1)]:
-                if (aw[0] not in account_names) or (aw[0] in system_account_names):
-                    new_owner_auth["account_auths"].remove(aw)
-            for aw in cur_active_auth["account_auths"][:(hive_max_authority_membership - 1)]:
-                if (aw[0] not in account_names) or (aw[0] in system_account_names):
-                    new_active_auth["account_auths"].remove(aw)
-            for aw in cur_posting_auth["account_auths"][:(hive_max_authority_membership - 1)]:
-                if (aw[0] not in account_names) or (aw[0] in system_account_names):
-                    new_posting_auth["account_auths"].remove(aw)
+            new_owner_auth = normalize_authority(
+                a["owner"], account_names, system_account_names, tnman,
+                hive_address_prefix, hive_max_authority_membership)
+            new_active_auth = normalize_authority(
+                a["active"], account_names, system_account_names, tnman,
+                hive_address_prefix, hive_max_authority_membership)
+            new_posting_auth = normalize_authority(
+                a["posting"], account_names, system_account_names, tnman,
+                hive_address_prefix, hive_max_authority_membership)
 
-            # add tnman to account_auths
-            new_owner_auth["account_auths"].append([tnman, cur_owner_auth["weight_threshold"]])
-            new_active_auth["account_auths"].append([tnman, cur_active_auth["weight_threshold"]])
-            new_posting_auth["account_auths"].append([tnman, cur_posting_auth["weight_threshold"]])
-            
-            # substitute prefix for key_auths
-            new_owner_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_owner_auth["key_auths"][:hive_max_authority_membership]]
-            new_active_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_active_auth["key_auths"][:hive_max_authority_membership]]
-            new_posting_auth["key_auths"] = [[hive_address_prefix + k[3:], w] for k, w in new_posting_auth["key_auths"][:hive_max_authority_membership]]
+            json_metadata = a["json_metadata"]
+            if json_metadata:
+                try:
+                    json.loads(json_metadata)
+                except (TypeError, ValueError) as error:
+                    raise RuntimeError(
+                        "account {} has invalid JSON metadata".format(a["name"])
+                    ) from error
 
             ops = [{"type" : "account_update_operation", "value" : {
               "account" : a["name"],
               "owner" : new_owner_auth,
               "active" : new_active_auth,
               "posting" : new_posting_auth,
-              "memo_key" : "TST"+a["memo_key"][3:],
-              "json_metadata" : a["json_metadata"],
+              "memo_key" : replace_key_prefix(a["memo_key"], hive_address_prefix),
+              "json_metadata" : json_metadata,
               }}]
 
             accounts_updated += 1
@@ -351,12 +401,15 @@ def port_snapshot(account_stats, conf, keydb, silent=True):
     hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
     porter = conf["accounts"]["porter"]["name"]
 
+    fee_reserve = satoshis(account_creation_fee(conf)) * len(account_stats["account_names"])
+    porter_funding = add_asset_units(conf["total_port_balance"], fee_reserve)
+
     yield {"operations" : [
       {"type" : "transfer_operation",
       "value" : {"from" : hive_init_miner_name,
        "to" : porter,
-       "amount" : conf["total_port_balance"],
-       "memo" : "Fund porting balances",
+       "amount" : porter_funding,
+       "memo" : "Fund porting balances and account creation fees",
       }}],
        "wif_sigs" : [keydb.get_privkey(hive_init_miner_name)]}
 
@@ -376,7 +429,8 @@ def build_actions(conf, silent=True):
     hive_block_interval = conf.get("hive_block_interval", HIVE_BLOCK_INTERVAL)
     transaction_witness_setup_pad = conf.get("transaction_witness_setup_pad", TRANSACTION_WITNESS_SETUP_PAD)
     
-    genesis_time = timeutil.utc_fromtimestamp(HIVE_GENESIS_TIMESTAMP)
+    hive_genesis_timestamp = conf.get("hive_genesis_timestamp", HIVE_GENESIS_TIMESTAMP)
+    genesis_time = timeutil.utc_fromtimestamp(hive_genesis_timestamp)
     
     # Three transactions per account (create, trasnfer_to_vesting, and update).
     predicted_transaction_count = num_accounts * 3
@@ -473,7 +527,8 @@ def log_config(conf, file):
     keys = ["transactions_per_block", "hive_block_interval",
       "num_blocks_to_clear_witness_round", "transaction_witness_setup_pad",
       "hive_max_authority_membership", "hive_address_prefix",
-      "hive_init_miner_name"]
+      "hive_init_miner_name", "hive_genesis_timestamp",
+      "account_creation_fee"]
     
     print("Using config:", file, file=sys.stderr)
     
