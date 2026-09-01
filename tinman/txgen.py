@@ -29,6 +29,9 @@ HIVE_BLOCKS_PER_DAY = 28800
 HIVE_ADDRESS_PREFIX = "TST"
 HIVE_INIT_MINER_NAME = "initminer"
 HIVE_LIQUID_NAI = "@@000000021"
+HIVE_GENESIS_SUPPLY = 250_000_000_000
+HIVE_MAX_AUTHORITY_WEIGHT = 65_535
+PORTED_BALANCE_MEMO = "Ported balance"
 
 
 def account_creation_fee(conf):
@@ -63,6 +66,44 @@ def porter_vesting(conf, account_stats):
     return amount(max(satoshis(configured), required))
 
 
+def required_genesis_funding(account_stats, conf):
+    hive_init_miner_name = conf.get("hive_init_miner_name", HIVE_INIT_MINER_NAME)
+    total = satoshis(conf["accounts"][hive_init_miner_name]["vesting"])
+    fee = satoshis(account_creation_fee(conf))
+
+    for group in ("init", "elector", "manager", "porter"):
+        desc = conf["accounts"][group]
+        count = desc.get("count", 1)
+        vesting = (
+            porter_vesting(conf, account_stats)
+            if group == "porter" else desc["vesting"]
+        )
+        total += count * (satoshis(vesting) + fee)
+
+    total += satoshis(conf["total_port_balance"])
+    total += fee * len(account_stats["account_names"])
+    return total
+
+
+def validate_genesis_supply(account_stats, conf):
+    supply = conf.get("hive_genesis_supply", amount(HIVE_GENESIS_SUPPLY))
+    if not isinstance(supply, dict):
+        raise RuntimeError("hive_genesis_supply must be an asset object")
+    if supply.get("nai") != HIVE_LIQUID_NAI or supply.get("precision") != 3:
+        raise RuntimeError("hive_genesis_supply must be a precision-3 HIVE asset")
+    try:
+        supply_units = satoshis(supply)
+    except (KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("hive_genesis_supply has an invalid amount") from error
+    required = required_genesis_funding(account_stats, conf)
+    if required > supply_units:
+        raise RuntimeError(
+            "planned genesis funding requires {} units of HIVE, but supply is {}"
+            .format(required, supply_units)
+        )
+    return required
+
+
 def replace_key_prefix(key, prefix):
     if not isinstance(key, str) or len(key) <= 3:
         raise RuntimeError("invalid public key")
@@ -79,6 +120,8 @@ def normalize_authority(authority, account_names, system_account_names,
         raise RuntimeError("authority has an invalid weight threshold") from error
     if threshold < 1:
         raise RuntimeError("authority weight threshold must be positive")
+    if threshold > HIVE_MAX_AUTHORITY_WEIGHT:
+        raise RuntimeError("authority weight threshold exceeds Hive's uint16 limit")
 
     account_auths = []
     for account_name, weight in authority.get("account_auths", []):
@@ -168,6 +211,7 @@ def update_witnesses(conf, keydb, name):
     return
 
 def build_setup_transactions(account_stats, conf, keydb, silent=True):
+    validate_genesis_supply(account_stats, conf)
     yield from create_system_accounts(conf, keydb, "init")
     yield from create_system_accounts(conf, keydb, "elector")
     yield from create_system_accounts(conf, keydb, "manager")
@@ -340,7 +384,7 @@ def create_accounts(account_stats, conf, keydb, silent=True):
                  "from" : porter,
                  "to" : name,
                  "amount" : amount(transfer_amount),
-                 "memo" : "Ported balance",
+                 "memo" : conf.get("ported_balance_memo", PORTED_BALANCE_MEMO),
                  }})
             
             accounts_created += 1
@@ -432,6 +476,24 @@ def port_snapshot(account_stats, conf, keydb, silent=True):
     
     return
 
+
+def predicted_setup_block_count(num_accounts, transactions_per_block,
+                                setup_pad, stats_elapsed_seconds,
+                                block_interval):
+    if transactions_per_block < 1 or block_interval < 1:
+        raise RuntimeError(
+            "transactions_per_block and hive_block_interval must be positive"
+        )
+    transaction_count = num_accounts * 3
+    transaction_blocks = (
+        transaction_count + transactions_per_block - 1
+    ) // transactions_per_block
+    setup_seconds = stats_elapsed_seconds * 2
+    setup_blocks = int(
+        (setup_seconds + block_interval - 1) // block_interval
+    )
+    return transaction_blocks + setup_pad + setup_blocks
+
 def build_actions(conf, silent=True):
     keydb = prockey.ProceduralKeyDatabase()
     account_stats_start = timeutil.utc_now()
@@ -449,18 +511,10 @@ def build_actions(conf, silent=True):
     # Three transactions per account (create, trasnfer_to_vesting, and update).
     predicted_transaction_count = num_accounts * 3
     
-    # The predicted number of blocks for accounts.
-    predicted_block_count = (
-        predicted_transaction_count + transactions_per_block - 1
-    ) // transactions_per_block
-    
-    # The number of seconds required to setup transactions is a multiple of
-    # the initial time it takes to do the get_account_stats() call.
-    predicted_transaction_setup_seconds = (account_stats_elapsed.seconds * 2)
-    
-    # Pad for update witnesses, vote witnesses, clear rounds, and transaction
-    # setup processing time
-    predicted_block_count += transaction_witness_setup_pad + (predicted_transaction_setup_seconds // hive_block_interval)
+    predicted_block_count = predicted_setup_block_count(
+        num_accounts, transactions_per_block, transaction_witness_setup_pad,
+        account_stats_elapsed.total_seconds(), hive_block_interval,
+    )
     
     now = timeutil.utc_now()
     start_time = now - datetime.timedelta(seconds=predicted_block_count * hive_block_interval)
@@ -544,7 +598,8 @@ def log_config(conf, file):
       "num_blocks_to_clear_witness_round", "transaction_witness_setup_pad",
       "hive_max_authority_membership", "hive_address_prefix",
       "hive_init_miner_name", "hive_genesis_timestamp",
-      "account_creation_fee", "porter_vesting_per_snapshot_account"]
+      "hive_genesis_supply", "account_creation_fee",
+      "porter_vesting_per_snapshot_account", "ported_balance_memo"]
     
     print("Using config:", file, file=sys.stderr)
     

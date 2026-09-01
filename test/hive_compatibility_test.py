@@ -71,6 +71,16 @@ class HiveCompatibilityTest(unittest.TestCase):
         self.assertEqual(methods[0], "debug_node_api.debug_generate_blocks")
         self.assertGreater(node.requests[0][2]["params"]["miss_blocks"], 0)
 
+    def test_fastgen_rejects_non_pristine_chain(self):
+        with self.assertRaisesRegex(RuntimeError, "head block 0"):
+            hive_compatibility.require_pristine_fastgen_chain(
+                {"head_block_number": 1}, {"accounts": []}
+            )
+        with self.assertRaisesRegex(RuntimeError, "porter account"):
+            hive_compatibility.require_pristine_fastgen_chain(
+                {"head_block_number": 0}, {"accounts": [{"name": "porter"}]}
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

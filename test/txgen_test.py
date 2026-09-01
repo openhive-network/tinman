@@ -90,6 +90,12 @@ class TxgenTest(unittest.TestCase):
             transaction["operations"][0]["value"]["fee"], txgen.amount(30)
         )
 
+    def test_account_creation_fee_rejects_negative_amount(self):
+        with self.assertRaisesRegex(RuntimeError, "cannot be negative"):
+            txgen.account_creation_fee({
+                "account_creation_fee": txgen.amount(-1),
+            })
+
     def test_porter_vesting_scales_with_snapshot_size(self):
         conf = {
             "porter_vesting_per_snapshot_account": txgen.amount(20000),
@@ -232,6 +238,8 @@ class TxgenTest(unittest.TestCase):
 
     def test_create_accounts(self):
         conf = {
+          "account_creation_fee": txgen.amount(30),
+          "ported_balance_memo": "Snapshot import",
           "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": {"amount" : "1", "precision" : 3, "nai" : "@@000000021"},
           "total_port_balance" : {"amount" : "200000000000", "precision" : 3, "nai" : "@@000000021"},
@@ -248,17 +256,18 @@ class TxgenTest(unittest.TestCase):
             for op in account["operations"]:
                 value = op["value"]
                 if op["type"] == "account_create_operation":
-                    self.assertEqual(value["fee"], {"amount" : "0", "precision" : 3, "nai" : "@@000000021"})
+                    self.assertEqual(value["fee"], txgen.amount(30))
                 elif op["type"] == "transfer_to_vesting_operation":
                     self.assertEqual(value["from"], "porter")
                     self.assertGreater(int(value["amount"]["amount"]), 0)
                 elif op["type"] == "transfer_operation":
                     self.assertEqual(value["from"], "porter")
                     self.assertGreater(int(value["amount"]["amount"]), 0)
-                    self.assertEqual(value["memo"], "Ported balance")
+                    self.assertEqual(value["memo"], "Snapshot import")
 
     def test_custom_porter_name_controls_authority_and_signatures(self):
         conf = {
+          "hive_address_prefix": "ALT",
           "snapshot_file" : self.copy_fixture("test-snapshot.json"),
           "min_vesting_per_account": txgen.amount(1),
           "total_port_balance" : txgen.amount(200000000000),
@@ -275,9 +284,15 @@ class TxgenTest(unittest.TestCase):
         updated = next(txgen.update_accounts(account_stats, conf, keydb))
 
         create_value = created["operations"][0]["value"]
+        update_value = updated["operations"][0]["value"]
         self.assertEqual(
             create_value["owner"]["account_auths"], [["snapshot-porter", 1]]
         )
+        self.assertTrue(create_value["memo_key"].startswith("ALT"))
+        self.assertTrue(update_value["memo_key"].startswith("ALT"))
+        for authority_name in ("owner", "active", "posting"):
+            for public_key, _ in update_value[authority_name]["key_auths"]:
+                self.assertTrue(public_key.startswith("ALT"))
         self.assertEqual(created["wif_sigs"], ["porter-wif"])
         self.assertEqual(updated["wif_sigs"], ["porter-wif"])
         keydb.get_privkey.assert_called_with("snapshot-porter")
@@ -313,6 +328,107 @@ class TxgenTest(unittest.TestCase):
         self.assertEqual(normalized["key_auths"], [["HIVEabc", 1]])
         self.assertEqual(
             len(normalized["account_auths"]) + len(normalized["key_auths"]), 3
+        )
+
+    def test_normalize_authority_at_hive_membership_cap(self):
+        account_names = {"account-{:02d}".format(index) for index in range(45)}
+        authority = {
+            "weight_threshold": 7,
+            "account_auths": [[name, 1] for name in sorted(account_names)],
+            "key_auths": [["STMkey-{}".format(index), 1] for index in range(5)],
+        }
+
+        normalized = txgen.normalize_authority(
+            authority, account_names, set(), "tnman", "HIVE", 40
+        )
+
+        self.assertEqual(len(normalized["account_auths"]), 40)
+        self.assertEqual(
+            normalized["account_auths"][:-1], authority["account_auths"][:39]
+        )
+        self.assertEqual(normalized["account_auths"][-1], ["tnman", 7])
+        self.assertEqual(normalized["key_auths"], [])
+
+    def test_normalize_authority_fills_cap_with_keys(self):
+        authority = {
+            "weight_threshold": 1,
+            "account_auths": [],
+            "key_auths": [["STMkey-{}".format(index), 1] for index in range(45)],
+        }
+        normalized = txgen.normalize_authority(
+            authority, set(), set(), "tnman", "HIVE", 40
+        )
+        self.assertEqual(normalized["account_auths"], [["tnman", 1]])
+        self.assertEqual(len(normalized["key_auths"]), 39)
+        self.assertEqual(
+            len(normalized["account_auths"]) + len(normalized["key_auths"]), 40
+        )
+
+    def test_normalize_authority_drops_system_account(self):
+        normalized = txgen.normalize_authority(
+            {
+                "weight_threshold": 1,
+                "account_auths": [["system", 1], ["alice", 1]],
+                "key_auths": [],
+            },
+            {"system", "alice"}, {"system"}, "tnman", "HIVE", 40,
+        )
+        self.assertEqual(
+            normalized["account_auths"], [["alice", 1], ["tnman", 1]]
+        )
+
+    def test_normalize_authority_rejects_uint16_overflow(self):
+        with self.assertRaisesRegex(RuntimeError, "uint16"):
+            txgen.normalize_authority(
+                {"weight_threshold": 65536}, set(), set(), "tnman", "HIVE", 40
+            )
+
+    def test_genesis_supply_guard_reports_overdraw(self):
+        conf = copy.deepcopy(FULL_CONF)
+        conf["hive_genesis_supply"] = txgen.amount(1000)
+        account_stats = {"account_names": {"alice"}}
+
+        with self.assertRaisesRegex(RuntimeError, "planned genesis funding"):
+            txgen.validate_genesis_supply(account_stats, conf)
+
+    def test_genesis_supply_guard_counts_all_direct_allocations(self):
+        conf = copy.deepcopy(FULL_CONF)
+        conf["account_creation_fee"] = txgen.amount(30)
+        account_stats = {"account_names": {"alice", "bob"}}
+        expected = (
+            1_000_000  # initminer vesting
+            + 21 * (1_000_000 + 30)
+            + 10 * (1_000_000_000 + 30)
+            + (1_000_000 + 30)  # manager
+            + (1_000_000 + 30)  # porter
+            + 200_000_000_000
+            + 2 * 30
+        )
+        conf["hive_genesis_supply"] = txgen.amount(expected)
+
+        self.assertEqual(
+            txgen.validate_genesis_supply(account_stats, conf), expected
+        )
+
+    def test_setup_transactions_apply_scaled_porter_vesting(self):
+        conf = copy.deepcopy(FULL_CONF)
+        account_stats = {"account_names": set(range(2000))}
+        porter_transaction = next(
+            transaction for transaction in txgen.build_setup_transactions(
+                account_stats, conf, prockey.ProceduralKeyDatabase()
+            )
+            if transaction["operations"][0]["type"] == "account_create_operation"
+            and transaction["operations"][0]["value"]["new_account_name"] == "porter"
+        )
+        self.assertEqual(
+            porter_transaction["operations"][1]["value"]["amount"],
+            txgen.amount(40_000_000),
+        )
+
+    def test_predicted_setup_blocks_use_ceiling_and_pad(self):
+        self.assertEqual(
+            txgen.predicted_setup_block_count(1, 2, 7, 2, 3),
+            11,
         )
 
 
@@ -417,3 +533,30 @@ class TxgenTest(unittest.TestCase):
                         created_account_names.append(new_account_name)
 
         self.assertEqual(set(created_account_names), set(system_account_names))
+
+    def test_build_actions_excludes_existing_account_and_funds_exact_fee_count(self):
+        conf = copy.deepcopy(FULL_CONF)
+        conf["snapshot_file"] = self.copy_fixture("test-snapshot.json")
+        conf["existing_account_names"] = ["steemit"]
+        conf["account_creation_fee"] = txgen.amount(30)
+        account_creates = []
+        account_updates = []
+        porter_funding = None
+
+        for command, arguments in txgen.build_actions(conf):
+            if command != "submit_transaction":
+                continue
+            for operation in arguments["tx"]["operations"]:
+                value = operation["value"]
+                if operation["type"] == "account_create_operation":
+                    account_creates.append(value["new_account_name"])
+                elif operation["type"] == "account_update_operation":
+                    account_updates.append(value["account"])
+                elif (operation["type"] == "transfer_operation"
+                      and value["to"] == "porter"
+                      and value["memo"].startswith("Fund porting")):
+                    porter_funding = value["amount"]
+
+        self.assertNotIn("steemit", account_creates)
+        self.assertNotIn("steemit", account_updates)
+        self.assertEqual(porter_funding, txgen.amount(200_000_000_600))

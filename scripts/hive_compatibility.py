@@ -179,6 +179,17 @@ def fastgen_chain_profile(hive, initial, lead_blocks=0):
     return read_only_probe(hive), preflight_block_generated
 
 
+def require_pristine_fastgen_chain(initial, porter_result):
+    require(
+        initial["head_block_number"] == 0,
+        "fastgen requires a pristine chain at head block 0",
+    )
+    require(
+        not porter_result.get("accounts"),
+        "fastgen requires a chain where the porter account does not exist",
+    )
+
+
 def fastgen_probe(args, hive, initial):
     require(
         args.hive_image and "@sha256:" in args.hive_image,
@@ -189,6 +200,8 @@ def fastgen_probe(args, hive, initial):
     snapshot = Path(args.snapshot).resolve()
     require(snapshot.is_file(), "snapshot fixture was not found: {}".format(snapshot))
     require(initial["is_testnet"] is True, "fastgen refuses to mutate a non-testnet chain")
+    before_porter = hive.database_api.find_accounts(accounts=["porter"])
+    require_pristine_fastgen_chain(initial, before_porter)
 
     config_template = json.loads(DEFAULT_CONFIG.read_text())
     with snapshot.open("rb") as snapshot_file:
@@ -220,7 +233,6 @@ def fastgen_probe(args, hive, initial):
         "database_api.get_config omitted block interval",
     )
 
-    before_porter = hive.database_api.find_accounts(accounts=["porter"])
     existing_account_names = list_all_account_names(hive)
     with tempfile.TemporaryDirectory(prefix="tinman-fastgen-") as temporary:
         temporary_path = Path(temporary)

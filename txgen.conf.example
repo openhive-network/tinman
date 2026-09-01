@@ -6,8 +6,10 @@
  "hive_max_authority_membership" : 10,
  "hive_address_prefix" : "TST",
  "hive_init_miner_name" : "initminer",
+ "hive_genesis_supply" : {"amount" : "250000000000", "precision" : 3, "nai" : "@@000000021"},
  "account_creation_fee" : {"amount" : "0", "precision" : 3, "nai" : "@@000000021"},
  "porter_vesting_per_snapshot_account" : {"amount" : "20000", "precision" : 3, "nai" : "@@000000021"},
+ "ported_balance_memo" : "Ported balance",
 
  "snapshot_file" : "snapshot.json",
  "backfill_file" : "backfill.actions",
