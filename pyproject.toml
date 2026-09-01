@@ -44,7 +44,7 @@ Repository = "https://gitlab.syncad.com/hive/tinman"
 version = { attr = "tinman.__version__" }
 
 [tool.setuptools.packages.find]
-include = ["tinman*", "simple_steem_client*"]
+include = ["tinman*", "simple_hive_client*"]
 
 [tool.setuptools.package-data]
 tinman = ["templates/*.html", "static/*.css"]

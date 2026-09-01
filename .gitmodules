@@ -1,3 +1,0 @@
-[submodule "tinman/simple_steem_client"]
-	path = tinman/simple_steem_client
-	url = https://github.com/steemit/simple_steem_client.git

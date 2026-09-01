@@ -27,6 +27,7 @@ build
 *.swo
 /*.json
 *.conf
+compatibility-reports/
 
 # Packages
 

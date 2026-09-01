@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 import time
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface, SteemRPCException
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
 
 from . import prockey
 from . import util
@@ -34,9 +34,9 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     
     source_node = conf["transaction_source"]["node"]
     is_appbase = str2bool(conf["transaction_source"]["appbase"])
-    backend = SteemRemoteBackend(nodes=[source_node], appbase=is_appbase)
-    steemd = SteemInterface(backend)
-    dgpo = steemd.database_api.get_dynamic_global_properties()
+    backend = HiveRemoteBackend(nodes=[source_node], appbase=is_appbase)
+    hived = HiveInterface(backend)
+    dgpo = hived.database_api.get_dynamic_global_properties()
     
     if min_block == 0:
         min_block = dgpo["head_block_number"]
@@ -51,7 +51,7 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     ported_types = set([op["type"] for op in ported_operations])
     """ Positive value of max_block means get from [min_block_number,max_block_number) range and stop """
     if max_block > 0: 
-        for op in util.iterate_operations_from(steemd, is_appbase, min_block, max_block, ported_types):
+        for op in util.iterate_operations_from(hived, is_appbase, min_block, max_block, ported_types):
             yield op_for_role(op, conf, keydb, ported_operations)
         return
     """
@@ -60,13 +60,13 @@ def repack_operations(conf, keydb, min_block, max_block, from_blocks_ago, to_blo
     """
     old_head_block = min_block
     while True:
-        dgpo = steemd.database_api.get_dynamic_global_properties()
+        dgpo = hived.database_api.get_dynamic_global_properties()
         new_head_block = dgpo["head_block_number"]
         while old_head_block == new_head_block:
             time.sleep(1) # Theoretically 3 seconds, but most probably we won't have to wait that long.
-            dgpo = steemd.database_api.get_dynamic_global_properties()
+            dgpo = hived.database_api.get_dynamic_global_properties()
             new_head_block = dgpo["head_block_number"]
-        for op in util.iterate_operations_from(steemd, is_appbase, old_head_block, new_head_block, ported_types):
+        for op in util.iterate_operations_from(hived, is_appbase, old_head_block, new_head_block, ported_types):
             yield op_for_role(op, conf, keydb, ported_operations)
         old_head_block = new_head_block
     return
@@ -114,7 +114,7 @@ def build_actions(conf, min_block, max_block, from_blocks_ago, to_blocks_ago):
                     yield ["submit_transaction", {"tx" : tx}]
                     retry_count = 0
             break
-        except SteemRPCException as e:
+        except HiveRPCException as e:
             cause = e.args[0].get("error")
             if cause:
                 message = cause.get("message")

@@ -1,6 +1,8 @@
 stages:
   - test
   - package
+  - container
+  - compatibility
 
 python:
   stage: test
@@ -9,32 +11,81 @@ python:
     matrix:
       - PYTHON_VERSION: ["3.12", "3.13", "3.14"]
   before_script:
-    - python -m pip install --upgrade pip
-    - python -m pip install .
+    - python -m pip install --upgrade pip tox
   script:
-    - python -W error::DeprecationWarning -m unittest discover -s test -p "*_test.py"
-    - python -m tinman --help
+    - TOX_ENV="py$(printf '%s' "$PYTHON_VERSION" | tr -d '.')"
+    - python -m tox run -e "$TOX_ENV"
 
 server:
   stage: test
-  image: python:3.12
+  image: python:${PYTHON_VERSION}
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.12", "3.13", "3.14"]
   before_script:
-    - python -m pip install --upgrade pip
-    - python -m pip install ".[server]"
+    - python -m pip install --upgrade pip tox
   script:
-    - python -m tinman server --help
+    - TOX_ENV="py$(printf '%s' "$PYTHON_VERSION" | tr -d '.')-server"
+    - python -m tox run -e "$TOX_ENV"
 
 package:
   stage: package
   image: python:3.12
   before_script:
-    - python -m pip install --upgrade pip build
+    - python -m pip install --upgrade pip tox
   script:
-    - python -m build
-    - python -m venv /tmp/tinman-wheel-test
-    - /tmp/tinman-wheel-test/bin/python -m pip install dist/*.whl
-    - cd /tmp && /tmp/tinman-wheel-test/bin/python -m tinman --help
-    - cd /tmp && /tmp/tinman-wheel-test/bin/python -m unittest discover -s "$CI_PROJECT_DIR/test" -p "*_test.py"
+    - python -m tox run -e package
+
+container:
+  stage: container
+  image: docker:29.0.0-cli
+  services:
+    - docker:29.0.0-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    TINMAN_IMAGE: "tinman:${CI_COMMIT_SHA}"
+  script:
+    - docker build --pull -t "$TINMAN_IMAGE" .
+    - docker run --rm --entrypoint python "$TINMAN_IMAGE" -W error::DeprecationWarning -m unittest discover -s test -p "*_test.py"
+    - docker run --rm "$TINMAN_IMAGE" --help
+
+hive-read-only:
+  stage: compatibility
+  image: python:3.12
+  variables:
+    TINMAN_HIVE_RPC: "https://api.hive.blog"
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install .
+    - mkdir -p compatibility-reports
+  script:
+    - python scripts/hive_compatibility.py read-only --report compatibility-reports/hive-read-only.json
   artifacts:
+    when: always
     paths:
-      - dist/
+      - compatibility-reports/
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - when: manual
+      allow_failure: true
+
+hive-fastgen:
+  stage: compatibility
+  tags:
+    - hive-fastgen
+  before_script:
+    - python3 -m venv .compat-venv
+    - .compat-venv/bin/python -m pip install .
+    - mkdir -p compatibility-reports
+  script:
+    - test -n "$TINMAN_FASTGEN_RPC"
+    - test -n "$TINMAN_HIVE_IMAGE"
+    - .compat-venv/bin/python scripts/hive_compatibility.py fastgen --endpoint "$TINMAN_FASTGEN_RPC" --hive-image "$TINMAN_HIVE_IMAGE" --report compatibility-reports/hive-fastgen.json
+  artifacts:
+    when: always
+    paths:
+      - compatibility-reports/
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $TINMAN_FASTGEN_RPC && $TINMAN_HIVE_IMAGE'
+    - when: manual
+      allow_failure: true

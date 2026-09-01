@@ -1,5 +1,5 @@
 
-# Simple Steem client using urllib
+# Simple Hive client using urllib
 
 import collections
 import json
@@ -10,25 +10,25 @@ import sys
 import urllib.error
 import urllib.request
 
-class SteemException(Exception):
+class HiveException(Exception):
     pass
 
-class SteemRPCException(SteemException):
+class HiveRPCException(HiveException):
     # Remote end returned error
     pass
 
-class SteemHTTPError(SteemException):
+class HiveHTTPError(HiveException):
     # HTTP error code
     pass
 
-class SteemNetworkError(SteemException):
+class HiveNetworkError(HiveException):
     pass
 
-class SteemIllegalArgument(SteemException):
+class HiveIllegalArgument(HiveException):
     # Buggy code in the caller is incorrectly using the provided API
     pass
 
-class SteemRemoteBackend(object):
+class HiveRemoteBackend(object):
     """
     Implement the rpc_call() method which actually submits
     parameters to a remote node.
@@ -46,11 +46,12 @@ class SteemRemoteBackend(object):
        req_id_increment=1,
        sleep_function=None,
        appbase=False,
+       rpc_style="direct",
        json_encoder=None,
        json_decoder=None,
        ):
         """
-        :param nodes:  List of Steem nodes to connect to
+        :param nodes:  List of Hive nodes to connect to
         :param urlopen:  Function used to load remote URL,
         urllib.request.urlopen is used if this parameter None or unspecified
         :param urlopen_args:  List of extra positional arguments to pass to the urlopen function
@@ -63,6 +64,8 @@ class SteemRemoteBackend(object):
         :param req_id_increment:  The amount by which subsequent request ID's should be incremented
         :param sleep_function:  time.sleep() or similar
         :param appbase:  If true, require keyword arguments.  If false, require positional arguments.
+        :param rpc_style:  Use current direct API method names, or the legacy
+        ``call`` envelope when set to ``legacy_call``.
         :param json_encoder:  Used to encode JSON for requests.  If not supplied, uses json.JSONEncoder
         :param json_decoder:  Used to decode JSON from responses.  If not supplied, uses json.JSONDecoder
         """
@@ -87,6 +90,9 @@ class SteemRemoteBackend(object):
         self.sleep_function = sleep_function
 
         self.appbase = appbase
+        if rpc_style not in {"direct", "legacy_call"}:
+            raise HiveIllegalArgument("Unknown RPC style {!r}".format(rpc_style))
+        self.rpc_style = rpc_style
 
         if json_encoder is None:
             json_encoder = json.JSONEncoder(
@@ -114,14 +120,14 @@ class SteemRemoteBackend(object):
         ):
 
         if (method_args is not None) and (method_kwargs is not None):
-            raise SteemIllegalArgument("Attempt to mix positional and keyword arguments")
+            raise HiveIllegalArgument("Attempt to mix positional and keyword arguments")
         if self.appbase and (method_args is not None):
-            raise SteemIllegalArgument("Post-appbase cannot specify args")
+            raise HiveIllegalArgument("Post-appbase cannot specify args")
         if (not self.appbase) and (method_kwargs is not None):
-            raise SteemIllegalArgument("Pre-appbase cannot specify kwargs")
+            raise HiveIllegalArgument("Pre-appbase cannot specify kwargs")
 
         if len(self.nodes) == 0:
-            raise SteemIllegalArgument("Must specify at least one node")
+            raise HiveIllegalArgument("Must specify at least one node")
 
         if self.appbase:
             if method_kwargs is None:
@@ -138,11 +144,17 @@ class SteemRemoteBackend(object):
         retry_count = 0
         while True:
             req_id = self.next_id()
+            if self.rpc_style == "legacy_call":
+                rpc_method = "call"
+                rpc_params = [api, method, args]
+            else:
+                rpc_method = "{}.{}".format(api, method)
+                rpc_params = args
             d = collections.OrderedDict((
                 ("jsonrpc", "2.0"),
                 ("id", req_id),
-                ("method", "call"),
-                ("params", [api, method, args]),
+                ("method", rpc_method),
+                ("params", rpc_params),
                 ))
             req_json = self.json_encoder.encode(d)
             req_bytes = req_json.encode("ascii")
@@ -170,16 +182,16 @@ class SteemRemoteBackend(object):
                     timeout = min(timeout + self.timeout_backoff, self.max_timeout)
                     continue
                 if isinstance(exc, urllib.error.HTTPError):
-                    raise SteemHTTPError(exc)
-                raise SteemNetworkError(exc)
+                    raise HiveHTTPError(exc)
+                raise HiveNetworkError(exc)
             logging.info("resp: %s", resp_bytes)
             resp_json = resp_bytes.decode("utf-8")
             resp = self.json_decoder.decode(resp_json)
             if "error" in resp:
-                raise SteemRPCException(resp)
+                raise HiveRPCException(resp)
             return resp["result"]
 
-class SteemInterface(object):
+class HiveInterface(object):
     """
     Provide syntax to dynamically bind methods to a backend.
     """
@@ -190,7 +202,7 @@ class SteemInterface(object):
 
     def __getattr__(self, item):
         if item.endswith("_api"):
-            return SteemInterface.Api(api_name=item, backend=self.backend)
+            return HiveInterface.Api(api_name=item, backend=self.backend)
         raise AttributeError("Unknown attribute {!r}".format(item))
 
     class Api(object):
@@ -200,7 +212,7 @@ class SteemInterface(object):
             return
 
         def __getattr__(self, item):
-            return SteemInterface.Method(
+            return HiveInterface.Method(
                api_name=self.api_name,
                method_name=item,
                backend=self.backend,

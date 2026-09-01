@@ -3,7 +3,7 @@
 import argparse
 import datetime
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface
 
 from . import timeutil
 
@@ -15,15 +15,15 @@ def main(argv):
     Checks basic node suitability for gatling phase.
     """
     parser = argparse.ArgumentParser(prog=argv[0], description="Generate transactions for Hive testnet")
-    parser.add_argument("-s", "--server", default="http://127.0.0.1:8090", dest="server", metavar="URL", help="Specify steemd server to watch over")
+    parser.add_argument("-s", "--server", default="http://127.0.0.1:8090", dest="server", metavar="URL", help="Specify hived server to watch over")
     args = parser.parse_args(argv[1:])
     
-    backend = SteemRemoteBackend(nodes=[args.server], appbase=True, max_timeout=0.0, max_retries=0)
-    steemd = SteemInterface(backend)
+    backend = HiveRemoteBackend(nodes=[args.server], appbase=True, max_timeout=0.0, max_retries=0)
+    hived = HiveInterface(backend)
     passfail = []
     
-    config = steemd.database_api.get_config(x=None)
-    dgpo = steemd.database_api.get_dynamic_global_properties(x=None)
+    config = hived.database_api.get_config()
+    dgpo = hived.database_api.get_dynamic_global_properties()
     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
     rtc_now = timeutil.utc_now()
     diff = rtc_now - head_block_time
@@ -47,7 +47,7 @@ def main(argv):
         print("[√] head block time: within %s seconds" % block_interval)
         passfail.append(PREFLIGHT_GO)
     
-    witness_schedule = steemd.database_api.get_witness_schedule(x=None)
+    witness_schedule = hived.database_api.get_witness_schedule()
     witnesses = witness_schedule["current_shuffled_witnesses"]
     scheduled_witnesses = witness_schedule["num_scheduled_witnesses"]
     

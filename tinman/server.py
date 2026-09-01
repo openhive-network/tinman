@@ -14,7 +14,7 @@ from flask import Flask, render_template, flash, request
 from wtforms import Form, StringField, validators
 from binascii import hexlify, unhexlify
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface, SteemRPCException
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
 
 from . import submit
 
@@ -43,8 +43,8 @@ def main(argv):
     result_str = result_bytes.decode("utf-8")
     result_json = json.loads(result_str.strip())
     account_creator_wif = result_json[0]["private_key"]
-    backend = SteemRemoteBackend(nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    steemd = SteemInterface(backend)
+    backend = HiveRemoteBackend(nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout)
+    hived = HiveInterface(backend)
     sign_transaction_exe = args.sign_transaction_exe
     
     if args.chain_name != "":
@@ -102,7 +102,7 @@ def main(argv):
                     "signatures":[]
                 }
                 
-                cached_dgpo = submit.CachedDgpo(steemd=steemd)
+                cached_dgpo = submit.CachedDgpo(hived=hived)
                 dgpo = cached_dgpo.get()
                 tx["ref_block_num"] = dgpo["head_block_number"] & 0xFFFF
                 tx["ref_block_prefix"] = struct.unpack_from("<I", unhexlify(dgpo["head_block_id"]), 4)[0]
@@ -120,12 +120,12 @@ def main(argv):
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
                 
                 try:
-                    steemd.network_broadcast_api.broadcast_transaction(trx=tx)
+                    submit.broadcast_transaction(hived, tx)
                     flash("Account Created: " + new_account_name)
                     
                     for key in keys:
                         flash(key + ": " + keys[key]["private_key"])
-                except SteemRPCException as e:
+                except HiveRPCException as e:
                     cause = e.args[0].get("error")
                     if cause:
                         message = cause.get("message")

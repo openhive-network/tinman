@@ -45,8 +45,9 @@ tinman --help
 ```
 
 The current Python compatibility guarantee covers installation, unit tests,
-packaged resources, and local CLI behavior. It does not yet certify Tinman's
-historical RPC and debug-node calls against a current Hive node.
+packaged resources, and local CLI behavior. The executable support policy and
+the separate live Hive compatibility profiles are documented in
+[`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 # Example Usage
 
@@ -203,8 +204,7 @@ The fastgen node needs the following:
 - It must contain functionality from PR's #1722 #1723
 - It should listen for p2p, the following examples assume it is listening on `0.0.0.0:12001`
 
-On the testnet, some serializations are different from the main network, and
-[they are not handled properly by steem_python](https://github.com/steemit/steem-python/issues/89).
+On the testnet, some serializations are different from the main network.
 Therefore, `tinman submit` outsources signing of those transactions to the
 `sign_transaction` binary included with `hived`.
 
@@ -336,10 +336,25 @@ Run the complete Python 3.12-3.14 matrix with tox:
 python -m tox
 ```
 
+Build and independently smoke-test the wheel and sdist:
+
+```bash
+make artifacts
+```
+
 Build and smoke-test the Python 3.12 container:
 
 ```bash
 make docker-test
 ```
+
+Run the safe live Hive API probe:
+
+```bash
+make compat-read-only
+```
+
+The destructive fast-generation probe and its pinned Hive image requirements
+are described in [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 <img src="https://i.imgur.com/h57pDVE.png" width="25%" height="25%" />

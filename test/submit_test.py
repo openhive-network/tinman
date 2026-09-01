@@ -24,3 +24,26 @@ class SubmitTest(unittest.TestCase):
         self.assertEqual(request["tx"], {"operations": []})
         self.assertEqual(request["wif"], "private-key")
         self.assertEqual(result, {"result": {"sig": "signature"}})
+
+    def test_generate_blocks_uses_current_debug_node_contract(self):
+        hived = mock.Mock()
+
+        submit.generate_blocks(hived, {"count": 2, "miss_blocks": 3})
+
+        hived.debug_node_api.debug_generate_blocks.assert_called_once_with(
+            debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
+            count=2,
+            skip=0,
+            miss_blocks=3,
+        )
+
+    def test_broadcast_uses_unbounded_block_age(self):
+        hived = mock.Mock()
+        transaction = {"operations": [], "signatures": []}
+
+        submit.broadcast_transaction(hived, transaction)
+
+        hived.network_broadcast_api.broadcast_transaction.assert_called_once_with(
+            trx=transaction,
+            max_block_age=-1,
+        )

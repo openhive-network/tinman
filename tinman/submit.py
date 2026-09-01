@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface
 
 from binascii import hexlify, unhexlify
 
@@ -40,10 +40,10 @@ class TransactionSigner(object):
         return json.loads(line)
 
 class CachedDgpo(object):
-    def __init__(self, timefunc=time.time, refresh_interval=1.0, steemd=None):
+    def __init__(self, timefunc=time.time, refresh_interval=1.0, hived=None):
         self.timefunc = timefunc
         self.refresh_interval = refresh_interval
-        self.steemd = steemd
+        self.hived = hived
 
         self.dgpo = None
         self.last_refresh = self.timefunc()
@@ -58,7 +58,7 @@ class CachedDgpo(object):
         if (now - self.last_refresh) > self.refresh_interval:
             self.reset()
         if self.dgpo is None:
-            self.dgpo = self.steemd.database_api.get_dynamic_global_properties(a=None)
+            self.dgpo = self.hived.database_api.get_dynamic_global_properties()
             self.last_refresh = now
         return self.dgpo
 
@@ -69,19 +69,24 @@ def wait_for_real_time(when):
             break
         time.sleep(0.4)
 
-def generate_blocks(steemd, args, cached_dgpo=None, now=None, produce_realtime=False):
+def broadcast_transaction(hived, tx):
+    return hived.network_broadcast_api.broadcast_transaction(
+        trx=tx,
+        max_block_age=-1,
+        )
+
+def generate_blocks(hived, args, cached_dgpo=None, now=None, produce_realtime=False):
     if args["count"] <= 0:
         return
 
     miss_blocks = args.get("miss_blocks", 0)
 
     if not produce_realtime:
-        steemd.debug_node_api.debug_generate_blocks(
+        hived.debug_node_api.debug_generate_blocks(
             debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
             count=args["count"],
             skip=0,
             miss_blocks=miss_blocks,
-            edit_if_needed=False,
             )
         return
     dgpo = cached_dgpo.get()
@@ -93,30 +98,28 @@ def generate_blocks(steemd, args, cached_dgpo=None, now=None, produce_realtime=F
     print("wait_for_real_time( {} )".format(next_time))
     wait_for_real_time(next_time)
     print("calling debug_generate_blocks, miss_blocks={}".format(miss_blocks))
-    steemd.debug_node_api.debug_generate_blocks(
+    hived.debug_node_api.debug_generate_blocks(
            debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
            count=1,
            skip=0,
            miss_blocks=miss_blocks,
-           edit_if_needed=False,
            )
     print("entering loop")
     for i in range(1, args["count"]):
         next_time += datetime.timedelta(seconds=3)
         wait_for_real_time(next_time)
-        steemd.debug_node_api.debug_generate_blocks(
+        hived.debug_node_api.debug_generate_blocks(
                debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
                count=1,
                skip=0,
                miss_blocks=0,
-               edit_if_needed=False,
                )
     return
 
 def main(argv):
 
     parser = argparse.ArgumentParser(prog=argv[0], description="Submit transactions to Hive")
-    parser.add_argument("-t", "--testserver", default="http://127.0.0.1:8190", dest="testserver", metavar="URL", help="Specify testnet steemd server with debug enabled")
+    parser.add_argument("-t", "--testserver", default="http://127.0.0.1:8190", dest="testserver", metavar="URL", help="Specify testnet hived server with debug enabled")
     parser.add_argument("--signer", default="sign_transaction", dest="sign_transaction_exe", metavar="FILE", help="Specify path to sign_transaction tool")
     parser.add_argument("-i", "--input-file", default="-", dest="input_file", metavar="FILE", help="File to read transactions from")
     parser.add_argument("-f", "--fail-file", default="-", dest="fail_file", metavar="FILE", help="File to write failures, - for stdout, die to quit on failure")
@@ -143,12 +146,12 @@ def main(argv):
 
     timeout = args.timeout
 
-    backend = SteemRemoteBackend(nodes=[args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    steemd = SteemInterface(backend)
+    backend = HiveRemoteBackend(nodes=[args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
+    hived = HiveInterface(backend)
     sign_transaction_exe = args.sign_transaction_exe
     produce_realtime = args.realtime
 
-    cached_dgpo = CachedDgpo(steemd=steemd)
+    cached_dgpo = CachedDgpo(hived=hived)
 
     if args.chain_name != "":
         chain_id = hashlib.sha256(str.encode(args.chain_name.strip())).digest().hex()
@@ -178,7 +181,7 @@ def main(argv):
                     join_head = int((now - head_block_time).total_seconds()) // HIVE_BLOCK_INTERVAL
                     
                     if join_head > HIVE_BLOCK_INTERVAL:
-                        generate_blocks(steemd, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                        generate_blocks(hived, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                         cached_dgpo.reset()
                 else:
                     transactions_per_block = metadata.get("txgen:transactions_per_block", transactions_per_block)
@@ -198,7 +201,7 @@ def main(argv):
                 if metadata and args.get("count") == 1 and args.get("miss_blocks"):
                     if args["miss_blocks"] < metadata["recommend:miss_blocks"]:
                         args["miss_blocks"] = metadata["recommend:miss_blocks"]
-                generate_blocks(steemd, args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                generate_blocks(hived, args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                 cached_dgpo.reset()
             elif cmd == "submit_transaction":
                 tx = args["tx"]
@@ -225,7 +228,7 @@ def main(argv):
                 tx["signatures"] = sigs
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
 
-                steemd.network_broadcast_api.broadcast_transaction(trx=tx)
+                broadcast_transaction(hived, tx)
                 transactions_count += 1
         except Exception as e:
             fail_file.write(json.dumps([cmd, args, str(e)])+"\n")
@@ -234,7 +237,7 @@ def main(argv):
                 raise
         
         if metadata and transactions_count > 0 and transactions_count % transactions_per_block == 0:
-            generate_blocks(steemd, {"count": 1}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+            generate_blocks(hived, {"count": 1}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
             cached_dgpo.reset()
             if cmd == "wait_blocks" and args.get("count") == 1 and not args.get("miss_blocks"):
                 continue

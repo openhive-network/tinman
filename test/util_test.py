@@ -2,7 +2,7 @@ import unittest
 
 from tinman import util
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface
 
 class UtilTest(unittest.TestCase):
     def test_tag_escape_sequences(self):
@@ -16,19 +16,19 @@ class UtilTest(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     def test_find_non_substr(self):
-        self.assertEqual(util.find_non_substr('steem'), 'a')
-        self.assertEqual(util.find_non_substr('steemian'), 'b')
-        self.assertEqual(util.find_non_substr('steemian bob'), 'c')
-        self.assertEqual(util.find_non_substr('steemian bob can'), 'd')
-        # skip 'e' because 'steem' contains 'e'
-        self.assertEqual(util.find_non_substr('steemian bob can do'), 'f')
-        self.assertEqual(util.find_non_substr('steemian bob can do fun'), 'g')
-        self.assertEqual(util.find_non_substr('steemian bob can do fun things'), 'j')
+        self.assertEqual(util.find_non_substr('hive'), 'a')
+        self.assertEqual(util.find_non_substr('hivean'), 'b')
+        self.assertEqual(util.find_non_substr('hivean bob'), 'c')
+        self.assertEqual(util.find_non_substr('hivean bob can'), 'd')
+        # skip 'e' because 'hive' contains 'e'
+        self.assertEqual(util.find_non_substr('hivean bob can do'), 'f')
+        self.assertEqual(util.find_non_substr('hivean bob can do fun'), 'g')
+        self.assertEqual(util.find_non_substr('hivean bob can do fun things'), 'j')
 
     def test_iterate_operations_from(self):
-        backend = SteemRemoteBackend(nodes=["https://api.steemit.com"], appbase=True)
-        steemd = SteemInterface(backend)
-        result = util.iterate_operations_from(steemd, True, 1102, 1103, set())
+        backend = HiveRemoteBackend(nodes=["https://api.hive.blog"], appbase=True)
+        hived = HiveInterface(backend)
+        result = util.iterate_operations_from(hived, True, 1102, 1103, set())
         expected_op = {
             'type': 'pow_operation',
             'value': {
@@ -43,7 +43,7 @@ class UtilTest(unittest.TestCase):
                 }, 'props': {
                     'account_creation_fee': {"amount" : "100000", "precision" : 3, "nai" : "@@000000021"},
                     'maximum_block_size': 131072,
-                    'sbd_interest_rate': 1000
+                    'hbd_interest_rate': 1000
                 }
             }
         }
@@ -63,7 +63,7 @@ class UtilTest(unittest.TestCase):
             self.assertEqual(op['value']['props']['account_creation_fee']['precision'], expected_op['value']['props']['account_creation_fee']['precision'])
             self.assertEqual(op['value']['props']['account_creation_fee']['nai'], expected_op['value']['props']['account_creation_fee']['nai'])
             self.assertEqual(op['value']['props']['maximum_block_size'], expected_op['value']['props']['maximum_block_size'])
-            self.assertEqual(op['value']['props']['sbd_interest_rate'], expected_op['value']['props']['sbd_interest_rate'])
+            self.assertEqual(op['value']['props']['hbd_interest_rate'], expected_op['value']['props']['hbd_interest_rate'])
 
     def test_action_to_str(self):
         action = ["metadata", {}]
