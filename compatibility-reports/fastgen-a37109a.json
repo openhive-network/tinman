@@ -1,0 +1,116 @@
+{
+  "docker_context": "calculon",
+  "results": [
+    {
+      "hive_image": "registry.gitlab.syncad.com/hive/hive/testnet:1.28.7@sha256:4b5720852668ab9cbdd41e2f16543c3ccd30fb3fc217174d312f38ff86867c79",
+      "probe": {
+        "endpoint": "http://tinman-matrix-hived-cbff622930:8091",
+        "fastgen": {
+          "chain_profile": {
+            "account_creation_fee": {
+              "amount": "0",
+              "nai": "@@000000021",
+              "precision": 3
+            },
+            "active_hardfork": "1.28.0",
+            "address_prefix": "STM",
+            "block_interval": 3,
+            "max_authority_membership": 40
+          },
+          "head_block_number_after": 24,
+          "head_block_number_before": 1,
+          "porter_existed_before": false,
+          "porter_exists_after": true,
+          "preflight_block_generated": true,
+          "submit_output_lines": 67
+        },
+        "hive_image": "registry.gitlab.syncad.com/hive/hive/testnet:1.28.7@sha256:4b5720852668ab9cbdd41e2f16543c3ccd30fb3fc217174d312f38ff86867c79",
+        "observed_at": "2026-09-01T23:54:53.985747+00:00",
+        "profile": "fastgen",
+        "read_only": {
+          "account_creation_fee": {
+            "amount": "0",
+            "nai": "@@000000021",
+            "precision": 3
+          },
+          "active_hardfork": "0.0.0",
+          "address_prefix": "STM",
+          "block_interval": 3,
+          "chain_id": "18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e",
+          "head_block_id": "0000000000000000000000000000000000000000",
+          "head_block_number": 0,
+          "head_block_time": "2016-01-01T00:00:00",
+          "hived_version": {
+            "blockchain_version": "1.28.6",
+            "chain_id": "18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e",
+            "fc_revision": "1f3833595ff31e6f1396075939bb9f41df9faa48",
+            "hive_revision": "1584099c3054a97f02abfb4788b23f02eea98728",
+            "node_type": "testnet"
+          },
+          "is_testnet": true,
+          "max_authority_membership": 40,
+          "sample_account": "hive.fund",
+          "sample_witness": "initminer"
+        },
+        "rpc_style": "direct"
+      },
+      "status": "passed"
+    },
+    {
+      "hive_image": "registry.gitlab.syncad.com/hive/hive/testnet@sha256:89be820efd988a8864c88225f6a26de92e36086af27dd8dde387d3067627fc4b",
+      "probe": {
+        "endpoint": "http://tinman-matrix-hived-13814c733f:8091",
+        "fastgen": {
+          "chain_profile": {
+            "account_creation_fee": {
+              "amount": "30",
+              "nai": "@@000000021",
+              "precision": 3
+            },
+            "active_hardfork": "1.28.0",
+            "address_prefix": "STM",
+            "block_interval": 3,
+            "max_authority_membership": 40
+          },
+          "head_block_number_after": 24,
+          "head_block_number_before": 1,
+          "porter_existed_before": false,
+          "porter_exists_after": true,
+          "preflight_block_generated": true,
+          "submit_output_lines": 67
+        },
+        "hive_image": "registry.gitlab.syncad.com/hive/hive/testnet@sha256:89be820efd988a8864c88225f6a26de92e36086af27dd8dde387d3067627fc4b",
+        "observed_at": "2026-09-01T23:56:41.746191+00:00",
+        "profile": "fastgen",
+        "read_only": {
+          "account_creation_fee": {
+            "amount": "1",
+            "nai": "@@000000021",
+            "precision": 3
+          },
+          "active_hardfork": "0.0.0",
+          "address_prefix": "STM",
+          "block_interval": 3,
+          "chain_id": "18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e",
+          "head_block_id": "0000000000000000000000000000000000000000",
+          "head_block_number": 0,
+          "head_block_time": "2016-01-01T00:00:00",
+          "hived_version": {
+            "blockchain_version": "1.29.0",
+            "chain_id": "18dcf0a285365fc58b71f18b3d3fec954aa0c141c44e4e5cb4cf777b9eab274e",
+            "fc_revision": "4ab43c0357b1e40aa20398ffc71d6e0a0ff00862",
+            "hive_revision": "0ccfa2e97f130df74b5994b7d9af2dc3bc3e7f57",
+            "node_type": "testnet"
+          },
+          "is_testnet": true,
+          "max_authority_membership": 40,
+          "sample_account": "hive.fund",
+          "sample_witness": "initminer"
+        },
+        "rpc_style": "direct"
+      },
+      "status": "passed"
+    }
+  ],
+  "tinman_image": "tinman:modernization-a37109a"
+}
