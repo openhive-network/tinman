@@ -102,7 +102,7 @@ custom build: it profiles and honors the limit reported by the target node.
 
 ### Converter authority boundary
 
-The converter path was exercised separately on Calculon using the immutable
+The converter path was exercised separately on Linux x86_64 using the immutable
 Hive 1.29.0-rc1 mirrornet image:
 
 ```text
@@ -123,17 +123,20 @@ mode is a proven optional authority-preservation capability, not a release
 gate.
 
 The current 2,000-account Tin Toy sample is the scale test for those reserves.
-On Calculon, immutable Tinman commit `911e472` and Tin Toy commit `97042dd`
+On Linux x86_64, immutable Tinman commit `911e472` and Tin Toy commit `97042dd`
 imported 1,998 non-genesis accounts, activated 21 deterministic witnesses,
 reached majority version 1.29.0, and sustained block production.
 
-Run the reproducible two-image matrix on the configured remote Docker context:
+Run the reproducible two-image matrix on the selected Docker context:
 
 ```bash
 make compat-matrix \
-  DOCKER_CONTEXT=calculon \
   MATRIX_TINMAN_IMAGE=tinman:modernization
 ```
+
+Set `DOCKER_CONTEXT=<context-name>` to use a different Docker context. The
+historical report's private Docker context name has been redacted; its image
+digests and validation results are unchanged.
 
 The runner uses a fresh network, container, and named utility volume for every
 cell, extracts signing tools from the exact Hive image, and cleans up all three
