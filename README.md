@@ -369,6 +369,14 @@ Build and smoke-test the Python 3.12 container:
 make docker-test
 ```
 
+After the container tests pass on a push to `develop`, CI publishes
+`registry.gitlab.syncad.com/hive/tinman:<full-commit-sha>` and updates the
+`develop` image tag. Merge-request pipelines build and test without publishing.
+
+```bash
+docker run --rm registry.gitlab.syncad.com/hive/tinman:develop --help
+```
+
 Run the safe live Hive API probe:
 
 ```bash
