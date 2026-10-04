@@ -480,7 +480,7 @@ class TxgenTest(unittest.TestCase):
                     self.assertEqual(args["actions:count"], 73)
                     self.assertGreater(args["recommend:miss_blocks"], 28631339)
                     self.assertEqual(args["snapshot:semver"], "0.2")
-                    self.assertEqual(args["snapshot:origin_api"], "http://calculon.local")
+                    self.assertEqual(args["snapshot:origin_api"], "http://example.invalid")
             elif cmd == "wait_blocks":
                 self.assertGreater(args["count"], 0)
             elif cmd == "submit_transaction":

@@ -108,7 +108,7 @@ def run_cell(docker, tinman_image, hive_image, readiness_timeout):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--context", default="calculon")
+    parser.add_argument("--context", help="Docker context (defaults to the selected context)")
     parser.add_argument("--tinman-image", default="tinman:modernization")
     parser.add_argument(
         "--hive-image", action="append", dest="hive_images",

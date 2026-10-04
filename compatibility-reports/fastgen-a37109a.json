@@ -1,5 +1,5 @@
 {
-  "docker_context": "calculon",
+  "docker_context": "redacted",
   "results": [
     {
       "hive_image": "registry.gitlab.syncad.com/hive/hive/testnet:1.28.7@sha256:4b5720852668ab9cbdd41e2f16543c3ccd30fb3fc217174d312f38ff86867c79",
