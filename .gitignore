@@ -27,6 +27,8 @@ build
 *.swo
 /*.json
 *.conf
+compatibility-reports/*
+!compatibility-reports/fastgen-a37109a.json
 
 # Packages
 

@@ -1,6 +1,6 @@
 import unittest
 import json
-import shutil
+from unittest import mock
 
 from tinman import keysub
 
@@ -14,12 +14,13 @@ class KeysubTest(unittest.TestCase):
         self.assertEqual(result, expected_result)
 
     def test_compute_keypair_from_seed(self):
-        try:
-            # Try in case the binary is in the path environment.
+        response = json.dumps([{
+            "public_key": "TST-public",
+            "private_key": "private",
+        }]).encode("utf-8")
+        with mock.patch.object(
+                keysub.subprocess, "check_output", return_value=response) as check:
             result = keysub.compute_keypair_from_seed('1234', 'secret')
-            expected_result = "('TST6n6jNUngRVCkh3GKBEZVe6r8reBPHmi8bRkwFZ1yh83iKfGcSN', '5JFQtrsidduA79M523UZ2yKub4383BUykWthPkmTD2TAiVfDrA6')"
-            self.assertEqual(result, expected_result)
-        except FileNotFoundError:
-            # Note, resolver needs to be mocked to properly test.
-            true_exe = shutil.which("true")
-            self.assertRaises(json.decoder.JSONDecodeError, keysub.compute_keypair_from_seed, '1234', 'secret', true_exe)
+
+        self.assertEqual(result, ("TST-public", "private"))
+        check.assert_called_once_with(["get_dev_key", "secret", "1234"])

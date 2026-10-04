@@ -4,6 +4,14 @@ The `tinman` set of utilities is a set of scripts to create a testnet.
 A `tinman` testnet allows all, or some subset of, user accounts to
 easily be *ported* from the main network.
 
+The canonical upstream is
+[`hive/tinman`](https://gitlab.syncad.com/hive/tinman). That project is marked
+`not-maintained`; its `develop` branch last changed in November 2020. This
+modernization is based on that branch and keeps the verified core pipeline
+(`snapshot -> txgen -> keysub -> submit`) working with current Python and Hive
+testnet images. See [`COMPATIBILITY.md`](COMPATIBILITY.md) for the exact tested
+versions and evidence.
+
 # Tinman commands
 
 This repository contains utilities to create a testnet.
@@ -15,65 +23,39 @@ This repository contains utilities to create a testnet.
 
 # Installation
 
-## Linux
+Tinman supports CPython 3.12, 3.13, and 3.14. Create a virtual environment and
+install the project with pip:
 
 ```bash
-$ sudo apt-get install virtualenv python3 libyajl-dev git
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
 ```
 
-## macOS
+The account-creation server is optional. Install its Flask and WTForms
+dependencies with the `server` extra:
 
 ```bash
-$ brew install python3 yajl
-$ pip3 install virtualenv
+python -m pip install ".[server]"
 ```
 
-## Creating a virtualenv
-
-In this step we create a virtualenv to isolate our project from the
-system-wide Python installation.  The virtualenv is *activated*,
-modifying the `PATH` and the prompt of the current shell,
-by sourcing the `activate` script:
+For an editable development environment with the build and test-matrix tools:
 
 ```bash
-$ virtualenv -p $(which python3) ~/ve/tinman
-$ source ~/ve/tinman/bin/activate
-```
-
-## Dependency Notes
-
-Tinman should work right out of the box, but on some more delicately configured machines, some users report `ijson` errors.  Running `pip install ijson` or `pip3 install ijson` should take care of that.
-
-The `ijson` requirement also uses `yajl` for performance improvements.  But `yajl` is optional and if it cannot be installed, there will be a warning that can be ignored.
-
-## Using tinman
-
-The `tinman` source can be checked out with `git`.  This documentation
-assumes the source code lives in `~/src/tinman`:
-
-**Note:**`tinman`'s default branch is develop. `master` is condsidered stablish.
-
-```bash
-$ mkdir -p ~/src
-$ cd ~/src
-$ git clone --branch master https://gitlab.syncad.com/hive/tinman.git
-$ cd tinman
-$ pip install pipenv
-$ pipenv install
-$ pip install .
+python -m pip install -e ".[dev]"
 ```
 
 If everything is set up correctly, you should be able to run commands
-such as `tinman --help` as follows:
+such as:
 
 ```bash
-# Execute inside tinman virtualenv
-$ tinman --help
+tinman --help
 ```
 
-Note, the `tinman` script in `~/ve/tinman/bin/tinman` may be symlinked
-elsewhere (for example, `ln -s ~/ve/tinman/bin/tinman ~/bin/tinman`)
-to allow `tinman` to run without the `virtualenv` being active.
+The current Python compatibility guarantee covers installation, unit tests,
+packaged resources, and local CLI behavior. The executable support policy and
+the separate live Hive compatibility profiles are documented in
+[`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 # Example Usage
 
@@ -86,7 +68,11 @@ $ tinman snapshot -s http://127.0.0.1:8090 -o snapshot.json
 Once the `snapshot.json` file has been created, copy `txgen.conf.example` to
 `txgen.conf`:
 
-* `snapshot_file` - make sure this is the same name as your new `snaptshot.json`
+* `snapshot_file` - make sure this is the same name as your new `snapshot.json`
+* `account_creation_fee` - set this to the target node's exact current median
+  account-creation fee; zero is valid only when the node reports zero
+* `hive_genesis_supply` - set this to the liquid HIVE allocated at genesis;
+  txgen refuses plans whose direct allocations and fee reserves exceed it
 
 ```bash
 # Next, create actions.
@@ -106,7 +92,7 @@ tinman keysub --get-dev-key /path/to/hive/programs/util/get_dev_key | \
 tinman submit --realtime -t http://127.0.0.1:9990 \
   --signer /path/to/hive/programs/util/sign_transaction \
   -f fail.json \
-  -t 600
+  --block-timeout 600
 ```
 
 After allowing this script to run, you have now bootstrapped your testnet and you can point your witnesses at this node to start seeding and signing blocks.
@@ -172,7 +158,16 @@ $ tinman txgen -c txgen.conf -o tn.txlist
 
 Some notes about `tinman txgen`:
 
-- All accounts have `porter` as an additional authority, allowing the testnet creator to act as any account on the testnet
+- All imported accounts have `tnman` as an additional authority, allowing the testnet creator to act as any account on the testnet
+- Tinman reserves room for its manager authority (`tnman` by default) within
+  Hive's live combined account-and-key authority limit. It keeps valid imported
+  account authorities in snapshot order, then imported keys while capacity
+  remains; excess members are omitted deterministically. This resolves the
+  bootstrap overflow described in [GitLab issue #1](https://gitlab.syncad.com/hive/tinman/-/issues/1)
+  when using standard Hive images. Hive later added a compile-time
+  `HIVE_CONVERTER_BUILD` mode with one extra authority slot for lossless
+  conversion, but the published images in Tinman's compatibility matrix report
+  the production limit of 40.
 - The private keys for `porter` and other accounts are deterministically created based on the `secret` option in the config file
 - Balances are created by dividing `total_port_balance` proportionally among the live HIVE and vesting, subject to `min_vesting_per_account`.
 - Therefore, testnet balance is not equal to mainnet balance.  Rather, it is proportional to mainnet balance.
@@ -230,8 +225,7 @@ The fastgen node needs the following:
 - It must contain functionality from PR's #1722 #1723
 - It should listen for p2p, the following examples assume it is listening on `0.0.0.0:12001`
 
-On the testnet, some serializations are different from the main network, and
-[they are not handled properly by steem_python](https://github.com/steemit/steem-python/issues/89).
+On the testnet, some serializations are different from the main network.
 Therefore, `tinman submit` outsources signing of those transactions to the
 `sign_transaction` binary included with `hived`.
 
@@ -350,11 +344,38 @@ transition.
 
 ## Tests
 
-To test `tinman`:
+Run the suite on the active interpreter:
 
 ```bash
-$ cd test
-$ pip install .. && python -m unittest *_test.py
+python -m unittest discover -s test -p '*_test.py'
+python -m tinman --help
 ```
+
+Run the complete Python 3.12-3.14 matrix with tox:
+
+```bash
+python -m tox
+```
+
+Build and independently smoke-test the wheel and sdist:
+
+```bash
+make artifacts
+```
+
+Build and smoke-test the Python 3.12 container:
+
+```bash
+make docker-test
+```
+
+Run the safe live Hive API probe:
+
+```bash
+make compat-read-only
+```
+
+The destructive fast-generation probe and its pinned Hive image requirements
+are described in [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 <img src="https://i.imgur.com/h57pDVE.png" width="25%" height="25%" />

@@ -3,9 +3,46 @@
 
 import itertools
 import json
+import os
+import sys
+import time
 
 from . import prockey
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface
+from simple_hive_client.client import HiveRemoteBackend, HiveInterface, HiveRPCException
+
+
+def ensure_distinct_paths(input_path, output_path):
+    """Reject destructive in-place operation for streaming filters."""
+    if input_path == "-" or output_path == "-":
+        return
+    input_path = os.path.realpath(os.path.abspath(input_path))
+    output_path = os.path.realpath(os.path.abspath(output_path))
+    same_file = input_path == output_path
+    if not same_file and os.path.exists(input_path) and os.path.exists(output_path):
+        same_file = os.path.samefile(input_path, output_path)
+    if same_file:
+        raise RuntimeError("input and output files must be different")
+
+
+def retry_hive_rpc(call, retryable_messages, max_attempts, sleep=time.sleep):
+    """Call a Hive RPC operation with bounded retries and backoff."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return call()
+        except HiveRPCException as error:
+            payload = error.args[0] if error.args and isinstance(error.args[0], dict) else {}
+            cause = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+            message = cause.get("message")
+            data = cause.get("data")
+            if message not in retryable_messages or attempt == max_attempts:
+                raise
+            print(
+                "Recovered (tries: {}): {}".format(attempt, message),
+                file=sys.stderr,
+            )
+            if data:
+                print(json.dumps(data, indent=2), file=sys.stderr)
+            sleep(min(0.1 * (2 ** (attempt - 1)), 2.0))
 
 def tag_escape_sequences(s, esc):
     """
@@ -87,7 +124,8 @@ def find_non_substr(s, alphabet="abcdefghijklmnopqrstuvwxyz", start=""):
 
     return result
 
-def iterate_operations_from(steemd, is_appbase, min_block_number, max_block_number, searched_operation_names):
+def iterate_operations_from(hived, is_appbase, min_block_number, max_block_number,
+                            searched_operation_names, rpc_call=None):
     """
     Yields operations iterated from provided node's blocks.
     If the last argument is not empty only those operations are returned
@@ -95,25 +133,29 @@ def iterate_operations_from(steemd, is_appbase, min_block_number, max_block_numb
 
     Example usage:
 
-    >>> iterate_operations_from(steemd, True, 1102, 1103, set())
-    ['pow', OrderedDict([('worker_account', 'steemit11'), ('block_id', '0000044df0f062c0504a8e37288a371ada63a1c7'), ('nonce', 33097), ('work', OrderedDict([('worker', 'STM65wH1LZ7BfSHcK69SShnqCAH5xdoSZpGkUjmzHJ5GCuxEK9V5G'), ('input', '45a3824498b87e41129f6fef17be276af6ff87d1e859128f28aaa9c08208871d'), ('signature', '1f93a52c4f794803b2563845b05b485e3e5f4c075ddac8ea8cffb988a1ffcdd1055590a3d5206a3be83cab1ea548fc52889d43bdbd7b74d62f87fb8e2166145a5d'), ('work', '00003e554a58830e7e01669796f40d1ce85c7eb979e376cb49e83319c2688c7e')])), ('props', OrderedDict([('account_creation_fee', '100.000 HIVE'), ('maximum_block_size', 131072), ('sbd_interest_rate', 1000)]))])]
+    >>> iterate_operations_from(hived, True, 1102, 1103, set())
+    ['pow', OrderedDict([('worker_account', 'steemit11'), ('block_id', '0000044df0f062c0504a8e37288a371ada63a1c7'), ('nonce', 33097), ('work', OrderedDict([('worker', 'STM65wH1LZ7BfSHcK69SShnqCAH5xdoSZpGkUjmzHJ5GCuxEK9V5G'), ('input', '45a3824498b87e41129f6fef17be276af6ff87d1e859128f28aaa9c08208871d'), ('signature', '1f93a52c4f794803b2563845b05b485e3e5f4c075ddac8ea8cffb988a1ffcdd1055590a3d5206a3be83cab1ea548fc52889d43bdbd7b74d62f87fb8e2166145a5d'), ('work', '00003e554a58830e7e01669796f40d1ce85c7eb979e376cb49e83319c2688c7e')])), ('props', OrderedDict([('account_creation_fee', '100.000 HIVE'), ('maximum_block_size', 131072), ('hbd_interest_rate', 1000)]))])]
     """
-    assert isinstance(steemd, SteemInterface)
+    assert isinstance(hived, HiveInterface)
     assert isinstance(is_appbase, bool)
     assert isinstance(min_block_number, int)
     assert isinstance(max_block_number, int)
     assert isinstance(searched_operation_names, set)
     filter_operation = len(searched_operation_names) > 0
+    if rpc_call is None:
+        rpc_call = lambda call: call()
     for block_num in range(min_block_number, max_block_number):
         if is_appbase:
-            another_block = steemd.block_api.get_block(block_num=block_num)
+            another_block = rpc_call(
+                lambda: hived.block_api.get_block(block_num=block_num)
+            )
             if not another_block:
                 print("No block retrieved when requested block no "+str(block_num))
                 return
             actual_block = another_block["block"]
             block_transactions = actual_block["transactions"]
         else:
-            another_block = steemd.block_api.get_block(block_num)
+            another_block = rpc_call(lambda: hived.block_api.get_block(block_num))
             if not another_block:
                 print("No block retrieved when requested block no "+str(block_num))
                 return

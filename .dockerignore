@@ -1,0 +1,14 @@
+.git
+.gitignore
+.malp
+.clawpatch
+.idea
+.tox
+.venv
+__pycache__
+*.py[cod]
+*.conf
+build
+dist
+tinman.egg-info
+compatibility-reports

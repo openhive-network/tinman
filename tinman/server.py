@@ -3,23 +3,68 @@
 import argparse
 import sys
 import os
+import hmac
 import hashlib
 import json
+import secrets
 import subprocess
 import struct
 import time
 import datetime
 
-from flask import Flask, render_template, flash, request
-from wtforms import Form, TextField, TextAreaField, validators, StringField, SubmitField
+from flask import Flask, Response, abort, render_template, flash, request, session
+from wtforms import Form, StringField, validators
 from binascii import hexlify, unhexlify
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface, SteemRPCException
+from simple_hive_client.client import HiveException, HiveInterface, HiveRemoteBackend
 
 from . import submit
 
 class ReusableForm(Form):
-    new_account_name = TextField('New Account Name:', validators=[validators.required()])
+    new_account_name = StringField('New Account Name:', validators=[validators.DataRequired()])
+
+
+def require_server_security(conf):
+    auth = conf.get("server_auth", {})
+    username = auth.get("username") if isinstance(auth, dict) else None
+    password = auth.get("password") if isinstance(auth, dict) else None
+    session_secret = conf.get("session_secret")
+    if not all(isinstance(value, str) and value for value in (
+            username, password, session_secret)):
+        raise RuntimeError(
+            "server_auth username/password and session_secret are required"
+        )
+    return username, password, session_secret
+
+
+def authorized(request_authorization, username, password):
+    def equal(left, right):
+        return hmac.compare_digest(
+            (left or "").encode("utf-8"),
+            (right or "").encode("utf-8"),
+        )
+
+    return bool(
+        request_authorization
+        and equal(request_authorization.username, username)
+        and equal(request_authorization.password, password)
+    )
+
+
+def signature_from_result(result):
+    if "error" in result:
+        raise RuntimeError("transaction signer failed: {}".format(result["error"]))
+    return result["result"]["sig"]
+
+
+def hive_error_message(error):
+    if error.args and isinstance(error.args[0], dict):
+        cause = error.args[0].get("error")
+        if isinstance(cause, dict) and cause.get("message"):
+            return str(cause["message"])
+        if cause:
+            return str(cause)
+    return str(error)
 
 def main(argv):
     parser = argparse.ArgumentParser(prog=argv[0], description="Web Server")
@@ -29,6 +74,7 @@ def main(argv):
     parser.add_argument("-n", "--chain-name", default="", dest="chain_name", metavar="CN", help="Specify chain name")
     parser.add_argument("-cid", "--chain-id", default="", dest="chain_id", metavar="CID", help="Specify chain ID")
     parser.add_argument("--timeout", default=5.0, type=float, dest="timeout", metavar="SECONDS", help="API timeout")
+    parser.add_argument("--read-retries", default=submit.DEFAULT_READ_RETRIES, type=int, dest="read_retries", metavar="COUNT", help="Retries for read-only Hive RPC calls")
     args = parser.parse_args(argv[1:])
     
     with open(args.conffile, "r") as f:
@@ -39,12 +85,21 @@ def main(argv):
     node = conf["transaction_target"]["node"]
     shared_secret = conf["shared_secret"]
     account_creator = conf["account_creator"]
+    auth_username, auth_password, session_secret = require_server_security(conf)
     result_bytes = subprocess.check_output([args.get_dev_key_exe, shared_secret, "active-" + account_creator])
     result_str = result_bytes.decode("utf-8")
     result_json = json.loads(result_str.strip())
     account_creator_wif = result_json[0]["private_key"]
-    backend = SteemRemoteBackend(nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    steemd = SteemInterface(backend)
+    read_backend = HiveRemoteBackend(
+        nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout,
+        max_retries=args.read_retries,
+    )
+    broadcast_backend = HiveRemoteBackend(
+        nodes=[node], appbase=True, min_timeout=timeout, max_timeout=timeout,
+        max_retries=0,
+    )
+    read_hived = HiveInterface(read_backend)
+    broadcast_hived = HiveInterface(broadcast_backend)
     sign_transaction_exe = args.sign_transaction_exe
     
     if args.chain_name != "":
@@ -57,14 +112,18 @@ def main(argv):
     
     signer = submit.TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
 
-    template_dir = '/tmp/tinman-templates'
-    static_dir = '/tmp/tinman-static'
+    app = Flask(__name__)
+    app.debug = bool(conf.get("debug", False))
+    app.config['SECRET_KEY'] = session_secret
 
-    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir, static_url_path='/static')
-    app.debug = True
-    
-    # Temporary development secret key (for web forms).
-    app.config['SECRET_KEY'] = '5333d026583fdd09f413d472b29ed39e'
+    @app.before_request
+    def authenticate():
+        if authorized(request.authorization, auth_username, auth_password):
+            return None
+        return Response(
+            "Authentication required\n", 401,
+            {"WWW-Authenticate": 'Basic realm="Tinman"'},
+        )
  
     @app.route("/account_create", methods=['GET', 'POST'])
     def account_create():
@@ -72,7 +131,12 @@ def main(argv):
      
         print(form.errors)
         if request.method == 'POST':
-            new_account_name = request.form['new_account_name']
+            expected_csrf_token = session.get("csrf_token", "")
+            submitted_csrf_token = request.form.get("csrf_token", "")
+            if not expected_csrf_token or not hmac.compare_digest(
+                    expected_csrf_token, submitted_csrf_token):
+                abort(400, "invalid CSRF token")
+            new_account_name = form.new_account_name.data
      
             if form.validate():
                 key_types = ["owner", "active", "posting", "memo"]
@@ -105,7 +169,7 @@ def main(argv):
                     "signatures":[]
                 }
                 
-                cached_dgpo = submit.CachedDgpo(steemd=steemd)
+                cached_dgpo = submit.CachedDgpo(hived=read_hived)
                 dgpo = cached_dgpo.get()
                 tx["ref_block_num"] = dgpo["head_block_number"] & 0xFFFF
                 tx["ref_block_prefix"] = struct.unpack_from("<I", unhexlify(dgpo["head_block_id"]), 4)[0]
@@ -115,34 +179,35 @@ def main(argv):
                 tx["expiration"] = expiration_str
 
                 result = signer.sign_transaction(tx, account_creator_wif)
-                if "error" in result:
-                    print("could not sign transaction", tx, "due to error:", result["error"])
-                else:
-                    tx["signatures"].append(result["result"]["sig"])
+                try:
+                    tx["signatures"].append(signature_from_result(result))
+                except RuntimeError as error:
+                    flash("Unable to create account: " + str(error))
+                    return render_template('account_create.html', form=form)
                 
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
                 
                 try:
-                    steemd.network_broadcast_api.broadcast_transaction(trx=tx)
+                    submit.broadcast_transaction(broadcast_hived, tx)
                     flash("Account Created: " + new_account_name)
                     
                     for key in keys:
                         flash(key + ": " + keys[key]["private_key"])
-                except SteemRPCException as e:
-                    cause = e.args[0].get("error")
-                    if cause:
-                        message = cause.get("message")
-                        data = cause.get("data")
-                    else:
-                        message = str(e)
+                except (HiveException, submit.BroadcastOutcomeUnknown) as e:
+                    message = hive_error_message(e)
                     print(str(e))
                     flash("Unable to create account: " + message)
             else:
                 flash('All the form fields are required.')
      
+        if "csrf_token" not in session:
+            session["csrf_token"] = secrets.token_urlsafe(32)
         return render_template('account_create.html', form=form)
     
-    app.run()
+    app.run(
+        host=conf.get("host", "127.0.0.1"),
+        port=int(conf.get("port", 5000)),
+    )
 
 if __name__ == "__main__":
     main(sys.argv)

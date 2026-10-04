@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-from simple_steem_client.client import SteemRemoteBackend, SteemInterface
+from simple_hive_client.client import (
+    HiveInterface,
+    HiveNetworkError,
+    HiveRemoteBackend,
+)
 
 from binascii import hexlify, unhexlify
 
@@ -15,18 +19,25 @@ import sys
 import time
 import traceback
 
+from . import timeutil
 from . import util
 
 ACTIONS_MAJOR_VERSION_SUPPORTED = 0
 ACTIONS_MINOR_VERSION_SUPPORTED = 2
 HIVE_BLOCK_INTERVAL = 3
+DEFAULT_READ_RETRIES = 2
+DEFAULT_BLOCK_TIMEOUT = 300.0
+
+
+class BroadcastOutcomeUnknown(RuntimeError):
+    pass
 
 class TransactionSigner(object):
     def __init__(self, sign_transaction_exe=None, chain_id=None):
         if(chain_id is None):
-            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return
 
     def sign_transaction(self, tx, wif):
@@ -36,13 +47,23 @@ class TransactionSigner(object):
         self.proc.stdin.write(b"\n")
         self.proc.stdin.flush()
         line = self.proc.stdout.readline().decode("utf-8")
-        return json.loads(line)
+        if not line:
+            signer_error = self.proc.stderr.read().decode("utf-8", errors="replace").strip()
+            raise RuntimeError(
+                "transaction signer exited without a response{}".format(
+                    ": " + signer_error if signer_error else ""
+                )
+            )
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError as error:
+            raise RuntimeError("transaction signer returned invalid JSON") from error
 
 class CachedDgpo(object):
-    def __init__(self, timefunc=time.time, refresh_interval=1.0, steemd=None):
+    def __init__(self, timefunc=time.time, refresh_interval=1.0, hived=None):
         self.timefunc = timefunc
         self.refresh_interval = refresh_interval
-        self.steemd = steemd
+        self.hived = hived
 
         self.dgpo = None
         self.last_refresh = self.timefunc()
@@ -57,30 +78,40 @@ class CachedDgpo(object):
         if (now - self.last_refresh) > self.refresh_interval:
             self.reset()
         if self.dgpo is None:
-            self.dgpo = self.steemd.database_api.get_dynamic_global_properties(a=None)
+            self.dgpo = self.hived.database_api.get_dynamic_global_properties()
             self.last_refresh = now
         return self.dgpo
 
 def wait_for_real_time(when):
     while True:
-        rtc_now = datetime.datetime.utcnow()
+        rtc_now = timeutil.utc_now()
         if rtc_now >= when:
             break
         time.sleep(0.4)
 
-def generate_blocks(steemd, args, cached_dgpo=None, now=None, produce_realtime=False):
+def broadcast_transaction(hived, tx):
+    try:
+        return hived.network_broadcast_api.broadcast_transaction(
+            trx=tx,
+            max_block_age=-1,
+            )
+    except HiveNetworkError as error:
+        raise BroadcastOutcomeUnknown(
+            "broadcast outcome is unknown; the transaction was not retried"
+        ) from error
+
+def generate_blocks(hived, args, cached_dgpo=None, now=None, produce_realtime=False):
     if args["count"] <= 0:
         return
 
     miss_blocks = args.get("miss_blocks", 0)
 
     if not produce_realtime:
-        steemd.debug_node_api.debug_generate_blocks(
+        hived.debug_node_api.debug_generate_blocks(
             debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
             count=args["count"],
             skip=0,
             miss_blocks=miss_blocks,
-            edit_if_needed=False,
             )
         return
     dgpo = cached_dgpo.get()
@@ -92,30 +123,28 @@ def generate_blocks(steemd, args, cached_dgpo=None, now=None, produce_realtime=F
     print("wait_for_real_time( {} )".format(next_time))
     wait_for_real_time(next_time)
     print("calling debug_generate_blocks, miss_blocks={}".format(miss_blocks))
-    steemd.debug_node_api.debug_generate_blocks(
+    hived.debug_node_api.debug_generate_blocks(
            debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
            count=1,
            skip=0,
            miss_blocks=miss_blocks,
-           edit_if_needed=False,
            )
     print("entering loop")
     for i in range(1, args["count"]):
         next_time += datetime.timedelta(seconds=3)
         wait_for_real_time(next_time)
-        steemd.debug_node_api.debug_generate_blocks(
+        hived.debug_node_api.debug_generate_blocks(
                debug_key="5JNHfZYKGaomSFvd4NUdQ9qMcEAC43kujbfjueTHpVapX1Kzq2n",
                count=1,
                skip=0,
                miss_blocks=0,
-               edit_if_needed=False,
                )
     return
 
 def main(argv):
 
     parser = argparse.ArgumentParser(prog=argv[0], description="Submit transactions to Hive")
-    parser.add_argument("-t", "--testserver", default="http://127.0.0.1:8190", dest="testserver", metavar="URL", help="Specify testnet steemd server with debug enabled")
+    parser.add_argument("-t", "--testserver", default="http://127.0.0.1:8190", dest="testserver", metavar="URL", help="Specify testnet hived server with debug enabled")
     parser.add_argument("--signer", default="sign_transaction", dest="sign_transaction_exe", metavar="FILE", help="Specify path to sign_transaction tool")
     parser.add_argument("-i", "--input-file", default="-", dest="input_file", metavar="FILE", help="File to read transactions from")
     parser.add_argument("-f", "--fail-file", default="-", dest="fail_file", metavar="FILE", help="File to write failures, - for stdout, die to quit on failure")
@@ -123,61 +152,81 @@ def main(argv):
     parser.add_argument("-c", "--chain-id", default="", dest="chain_id", metavar="CID", help="Specify chain ID")
     parser.add_argument("-tpb", "--transactions-per-block", default="40", dest="transactions_per_block", metavar="INT", help="Transactions per block (default: 40)")
     parser.add_argument("--timeout", default=5.0, type=float, dest="timeout", metavar="SECONDS", help="API timeout")
+    parser.add_argument("--block-timeout", default=DEFAULT_BLOCK_TIMEOUT, type=float, dest="block_timeout", metavar="SECONDS", help="Timeout for debug block generation")
+    parser.add_argument("--read-retries", default=DEFAULT_READ_RETRIES, type=int, dest="read_retries", metavar="COUNT", help="Retries for read-only Hive RPC calls")
     parser.add_argument("--realtime", dest="realtime", action="store_true", help="Wait when asked to produce blocks in the future")
-    args = parser.parse_args(argv[1:])
+    cli_args = parser.parse_args(argv[1:])
 
     die_on_fail = False
-    if args.fail_file == "-":
+    if cli_args.fail_file == "-":
         fail_file = sys.stdout
-    elif args.fail_file == "die":
+    elif cli_args.fail_file == "die":
         fail_file = sys.stdout
         die_on_fail = True
     else:
-        fail_file = open(args.fail_file, "w")
+        fail_file = open(cli_args.fail_file, "w")
 
-    if args.input_file == "-":
+    if cli_args.input_file == "-":
         input_file = sys.stdin
     else:
-        input_file = open(args.input_file, "r")
+        input_file = open(cli_args.input_file, "r")
 
-    timeout = args.timeout
+    timeout = cli_args.timeout
 
-    backend = SteemRemoteBackend(nodes=[args.testserver], appbase=True, min_timeout=timeout, max_timeout=timeout)
-    steemd = SteemInterface(backend)
-    sign_transaction_exe = args.sign_transaction_exe
-    produce_realtime = args.realtime
+    read_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=timeout, max_timeout=timeout,
+        max_retries=cli_args.read_retries,
+    )
+    debug_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=cli_args.block_timeout, max_timeout=cli_args.block_timeout,
+        max_retries=0,
+    )
+    broadcast_backend = HiveRemoteBackend(
+        nodes=[cli_args.testserver], appbase=True,
+        min_timeout=timeout, max_timeout=timeout,
+        max_retries=0,
+    )
+    read_hived = HiveInterface(read_backend)
+    debug_hived = HiveInterface(debug_backend)
+    broadcast_hived = HiveInterface(broadcast_backend)
+    sign_transaction_exe = cli_args.sign_transaction_exe
+    produce_realtime = cli_args.realtime
 
-    cached_dgpo = CachedDgpo(steemd=steemd)
+    cached_dgpo = CachedDgpo(hived=read_hived)
 
-    if args.chain_name != "":
-        chain_id = hashlib.sha256(str.encode(args.chain_name.strip())).digest().hex()
+    if cli_args.chain_name != "":
+        chain_id = hashlib.sha256(str.encode(cli_args.chain_name.strip())).digest().hex()
     else:
         chain_id = None
 
-    if args.chain_id != "":
-        chain_id = args.chain_id.strip()
+    if cli_args.chain_id != "":
+        chain_id = cli_args.chain_id.strip()
 
-    transactions_per_block = int(args.transactions_per_block)
+    transactions_per_block = int(cli_args.transactions_per_block)
     transactions_count = 0
+    failure_count = 0
     signer = TransactionSigner(sign_transaction_exe=sign_transaction_exe, chain_id=chain_id)
     metadata = None
 
     for line in input_file:
-        line = line.strip()
-        cmd, args = json.loads(line)
-
+        cmd = None
+        action_args = None
         try:
+            line = line.strip()
+            cmd, action_args = json.loads(line)
             if cmd == "metadata":
-                metadata = args
+                metadata = action_args
                 
-                if args.get("post_backfill"):
+                if action_args.get("post_backfill"):
                     dgpo = cached_dgpo.get()
-                    now = datetime.datetime.utcnow()
+                    now = timeutil.utc_now()
                     head_block_time = datetime.datetime.strptime(dgpo["time"], "%Y-%m-%dT%H:%M:%S")
                     join_head = int((now - head_block_time).total_seconds()) // HIVE_BLOCK_INTERVAL
                     
                     if join_head > HIVE_BLOCK_INTERVAL:
-                        generate_blocks(steemd, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                        generate_blocks(debug_hived, {"count": join_head}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                         cached_dgpo.reset()
                 else:
                     transactions_per_block = metadata.get("txgen:transactions_per_block", transactions_per_block)
@@ -194,13 +243,13 @@ def main(argv):
                     if minor_version < ACTIONS_MINOR_VERSION_SUPPORTED:
                         print("WARNING: Older actions encountered.", file=sys.stderr)
             elif cmd == "wait_blocks":
-                if metadata and args.get("count") == 1 and args.get("miss_blocks"):
-                    if args["miss_blocks"] < metadata["recommend:miss_blocks"]:
-                        args["miss_blocks"] = metadata["recommend:miss_blocks"]
-                generate_blocks(steemd, args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
+                if metadata and action_args.get("count") == 1 and action_args.get("miss_blocks"):
+                    if action_args["miss_blocks"] < metadata["recommend:miss_blocks"]:
+                        action_args["miss_blocks"] = metadata["recommend:miss_blocks"]
+                generate_blocks(debug_hived, action_args, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
                 cached_dgpo.reset()
             elif cmd == "submit_transaction":
-                tx = args["tx"]
+                tx = action_args["tx"]
                 dgpo = cached_dgpo.get()
                 tx["ref_block_num"] = dgpo["head_block_number"] & 0xFFFF
                 tx["ref_block_prefix"] = struct.unpack_from("<I", unhexlify(dgpo["head_block_id"]), 4)[0]
@@ -218,26 +267,40 @@ def main(argv):
                         raise RuntimeError("wif_sigs is not list")
                     result = signer.sign_transaction(tx, wif)
                     if "error" in result:
-                        print("could not sign transaction", tx, "due to error:", result["error"])
-                    else:
-                        sigs.append(result["result"]["sig"])
+                        raise RuntimeError(
+                            "could not sign transaction: {}".format(result["error"])
+                        )
+                    sigs.append(result["result"]["sig"])
                 tx["signatures"] = sigs
                 print("bcast:", json.dumps(tx, separators=(",", ":")))
 
-                steemd.network_broadcast_api.broadcast_transaction(trx=tx)
+                broadcast_transaction(broadcast_hived, tx)
                 transactions_count += 1
+
+                if (metadata and transactions_count > 0
+                        and transactions_count % transactions_per_block == 0):
+                    generate_blocks(
+                        debug_hived, {"count": 1}, cached_dgpo=cached_dgpo,
+                        produce_realtime=produce_realtime
+                    )
+                    cached_dgpo.reset()
         except Exception as e:
-            fail_file.write(json.dumps([cmd, args, str(e)])+"\n")
+            failure_count += 1
+            failed_args = action_args if action_args is not None else {"raw": line}
+            fail_file.write(json.dumps([cmd, failed_args, str(e)])+"\n")
             fail_file.flush()
             if die_on_fail:
+                if input_file is not sys.stdin:
+                    input_file.close()
+                if fail_file is not sys.stdout:
+                    fail_file.close()
                 raise
-        
-        if metadata and transactions_count > 0 and transactions_count % transactions_per_block == 0:
-            generate_blocks(steemd, {"count": 1}, cached_dgpo=cached_dgpo, produce_realtime=produce_realtime)
-            cached_dgpo.reset()
-            if cmd == "wait_blocks" and args.get("count") == 1 and not args.get("miss_blocks"):
-                continue
-        
+
+    if input_file is not sys.stdin:
+        input_file.close()
+    if fail_file is not sys.stdout:
+        fail_file.close()
+    return 1 if failure_count else 0
 
 if __name__ == "__main__":
     main(sys.argv)

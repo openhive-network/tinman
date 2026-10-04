@@ -29,16 +29,7 @@ def main(argv):
     else:
         # We have random access!
         
-        try:
-            import ijson.backends.yajl2_cffi as ijson
-            from cffi import FFI
-            YAJL2_CFFI_AVAILABLE = True
-        except ImportError:
-            import ijson
-            YAJL2_CFFI_AVAILABLE = False
-        
-        if not YAJL2_CFFI_AVAILABLE:
-            print("Warning: could not load yajl, falling back to default backend for ijson.")
+        import ijson
         
         infile = open(args.infile, "rb")
 
@@ -57,7 +48,7 @@ def main(argv):
                 snapshot["metadata"]["snapshot:origin_api"] = value
                 break
         
-        print("Captured:", snapshot["metadata"])
+        print("Captured:", snapshot["metadata"], file=sys.stderr)
         
         fund = snapshot["dynamic_global_properties"]["total_vesting_fund_hive"]
         infile.seek(0)
@@ -71,19 +62,19 @@ def main(argv):
             if len(fund.keys()) > 2:
                 break
         
-        print("Captured:", snapshot["dynamic_global_properties"])
+        print("Captured:", snapshot["dynamic_global_properties"], file=sys.stderr)
         
         infile.seek(0)
         for a in ijson.items(infile, "accounts.item"):
             account_balances[a["name"]] = a["balance"]["amount"]
             
             if len(account_balances) % 100000 == 0:
-                print("Balances so far:", len(account_balances))
+                print("Balances so far:", len(account_balances), file=sys.stderr)
         
         top_accounts = heapq.nlargest(sample_size, account_balances,
             key=lambda a : int(account_balances[a]))
         
-        print('Found top accounts:', len(top_accounts))
+        print('Found top accounts:', len(top_accounts), file=sys.stderr)
         
         infile.seek(0)
         for a in ijson.items(infile, "accounts.item"):
@@ -97,15 +88,15 @@ def main(argv):
                 snapshot["accounts"].append(a)
                 
                 if s > 0 and s % 100 == 0:
-                    print("Samples created:", s)
-                    print("\t", '%.2f%% complete' % (s / t * 100.0))
+                    print("Samples created:", s, file=sys.stderr)
+                    print("\t", '%.2f%% complete' % (s / t * 100.0), file=sys.stderr)
                 
         infile.close()
 
     if args.outfile == "-":
         outfile = sys.stdout
     else:
-        print("Dumping sample ...")
+        print("Dumping sample ...", file=sys.stderr)
         outfile = open(args.outfile, "w")
     json.dump(snapshot, outfile, separators=(",", ":"))
 

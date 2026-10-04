@@ -42,7 +42,9 @@ def main(argv):
     parser.add_argument("-r", "--ratio", default="1.0", dest="ratio", metavar="FLOAT", help="Adjust amounts in op to ratio")
     parser.add_argument("-f", "--floor-satoshi", default="1", dest="floor_satoshi", metavar="INT", help="Minimum amount after ratio is applied")
     args = parser.parse_args(argv[1:])
-    
+
+    util.ensure_distinct_paths(args.input_file, args.output_file)
+
     if args.output_file == "-":
         output_file = sys.stdout
     else:
