@@ -66,6 +66,14 @@ container:
     - docker build --pull -t "$TINMAN_IMAGE" .
     - docker run --rm --entrypoint python "$TINMAN_IMAGE" -W error::DeprecationWarning -m unittest discover -s test -p "*_test.py"
     - docker run --rm "$TINMAN_IMAGE" --help
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "push" ] && [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        printf '%s' "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+        docker tag "$TINMAN_IMAGE" "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+        docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+        docker tag "$TINMAN_IMAGE" "$CI_REGISTRY_IMAGE:develop"
+        docker push "$CI_REGISTRY_IMAGE:develop"
+      fi
 
 hive-read-only:
   stage: compatibility
