@@ -1,4 +1,5 @@
 import copy
+import json
 from pathlib import Path
 import unittest
 import shutil
@@ -382,6 +383,38 @@ class TxgenTest(unittest.TestCase):
             txgen.normalize_authority(
                 {"weight_threshold": 65536}, set(), set(), "tnman", "HIVE", 40
             )
+
+    def test_normalize_authority_rejects_negative_threshold(self):
+        with self.assertRaises(RuntimeError):
+            txgen.normalize_authority(
+                {"weight_threshold": -1}, set(), set(), "tnman", "HIVE", 40
+            )
+
+    def test_build_actions_preserves_open_posting_authority(self):
+        conf = copy.deepcopy(FULL_CONF)
+        snapshot_path = Path(self.copy_fixture("test-snapshot.json"))
+        snapshot = json.loads(snapshot_path.read_text())
+        account = snapshot["accounts"][0]
+        account["posting"] = {
+            "weight_threshold": 0, "account_auths": [], "key_auths": [],
+        }
+        snapshot_path.write_text(json.dumps(snapshot))
+        conf["snapshot_file"] = str(snapshot_path)
+
+        updates = {}
+        for command, arguments in txgen.build_actions(conf):
+            if command == "submit_transaction":
+                for operation in arguments["tx"]["operations"]:
+                    if operation["type"] == "account_update_operation":
+                        value = operation["value"]
+                        updates[value["account"]] = value
+
+        self.assertLessEqual({item["name"] for item in snapshot["accounts"]}, set(updates))
+        self.assertEqual(updates[account["name"]]["posting"], {
+            "weight_threshold": 0,
+            "account_auths": [["tnman", 0]],
+            "key_auths": [],
+        })
 
     def test_genesis_supply_guard_reports_overdraw(self):
         conf = copy.deepcopy(FULL_CONF)

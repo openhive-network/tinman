@@ -134,7 +134,7 @@ def main(argv):
             expected_csrf_token = session.get("csrf_token", "")
             submitted_csrf_token = request.form.get("csrf_token", "")
             if not expected_csrf_token or not hmac.compare_digest(
-                    expected_csrf_token, submitted_csrf_token):
+                    expected_csrf_token.encode("utf-8"), submitted_csrf_token.encode("utf-8")):
                 abort(400, "invalid CSRF token")
             new_account_name = form.new_account_name.data
      

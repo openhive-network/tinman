@@ -118,8 +118,8 @@ def normalize_authority(authority, account_names, system_account_names,
         threshold = int(authority["weight_threshold"])
     except (KeyError, TypeError, ValueError) as error:
         raise RuntimeError("authority has an invalid weight threshold") from error
-    if threshold < 1:
-        raise RuntimeError("authority weight threshold must be positive")
+    if threshold < 0:
+        raise RuntimeError("authority weight threshold cannot be negative")
     if threshold > HIVE_MAX_AUTHORITY_WEIGHT:
         raise RuntimeError("authority weight threshold exceeds Hive's uint16 limit")
 

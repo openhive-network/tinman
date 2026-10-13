@@ -35,9 +35,9 @@ class BroadcastOutcomeUnknown(RuntimeError):
 class TransactionSigner(object):
     def __init__(self, sign_transaction_exe=None, chain_id=None):
         if(chain_id is None):
-            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         else:
-            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.proc = subprocess.Popen([sign_transaction_exe, "--chain-id="+chain_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         return
 
     def sign_transaction(self, tx, wif):
@@ -48,12 +48,7 @@ class TransactionSigner(object):
         self.proc.stdin.flush()
         line = self.proc.stdout.readline().decode("utf-8")
         if not line:
-            signer_error = self.proc.stderr.read().decode("utf-8", errors="replace").strip()
-            raise RuntimeError(
-                "transaction signer exited without a response{}".format(
-                    ": " + signer_error if signer_error else ""
-                )
-            )
+            raise RuntimeError("transaction signer exited without a response")
         try:
             return json.loads(line)
         except json.JSONDecodeError as error:
@@ -303,4 +298,4 @@ def main(argv):
     return 1 if failure_count else 0
 
 if __name__ == "__main__":
-    main(sys.argv)
+    sys.exit(main(sys.argv))

@@ -1,6 +1,8 @@
 import io
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -48,7 +50,6 @@ class SubmitTest(unittest.TestCase):
         process = mock.Mock()
         process.stdin = io.BytesIO()
         process.stdout = io.BytesIO(b'{"result":{"sig":"signature"}}\n')
-        process.stderr = io.BytesIO()
 
         with mock.patch.object(
             submit.subprocess, "Popen", return_value=process
@@ -58,20 +59,19 @@ class SubmitTest(unittest.TestCase):
 
         command = popen.call_args.args[0]
         self.assertEqual(command, ["sign_transaction", "--chain-id=chain-id"])
-        self.assertEqual(popen.call_args.kwargs["stderr"], submit.subprocess.PIPE)
+        self.assertIsNone(popen.call_args.kwargs.get("stderr"))
         request = json.loads(process.stdin.getvalue().decode("ascii"))
         self.assertEqual(request["tx"], {"operations": []})
         self.assertEqual(request["wif"], "private-key")
         self.assertEqual(result, {"result": {"sig": "signature"}})
 
-    def test_transaction_signer_reports_stderr_on_empty_response(self):
+    def test_transaction_signer_reports_empty_response(self):
         process = mock.Mock()
         process.stdin = io.BytesIO()
         process.stdout = io.BytesIO()
-        process.stderr = io.BytesIO(b"bad chain id\n")
         with mock.patch.object(submit.subprocess, "Popen", return_value=process):
             signer = submit.TransactionSigner("sign_transaction")
-            with self.assertRaisesRegex(RuntimeError, "bad chain id"):
+            with self.assertRaisesRegex(RuntimeError, "exited without a response"):
                 signer.sign_transaction({"operations": []}, "private-key")
 
     def test_generate_blocks_uses_current_debug_node_contract(self):
@@ -85,6 +85,45 @@ class SubmitTest(unittest.TestCase):
             skip=0,
             miss_blocks=3,
         )
+
+    def test_noisy_signer_does_not_block_response(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            signer_path = Path(temporary) / "noisy-signer"
+            signer_path.write_text(
+                "#!" + sys.executable + "\n"
+                "import sys\n"
+                "sys.stdin.readline()\n"
+                "sys.stderr.write('diagnostic\\n' * 32768)\n"
+                "sys.stderr.flush()\n"
+                "print('{\"result\": {\"sig\": \"signature\"}}', flush=True)\n"
+            )
+            signer_path.chmod(0o755)
+            result = subprocess.run([
+                sys.executable, "-c",
+                "import json, sys; from tinman.submit import TransactionSigner; "
+                "signer = TransactionSigner(sys.argv[1]); "
+                "print(json.dumps(signer.sign_transaction({}, 'test-key'))); "
+                "signer.proc.communicate(timeout=5)",
+                str(signer_path),
+            ], capture_output=True, text=True, timeout=10)
+
+        self.assertEqual(result.returncode, 0, result.stderr[-1000:])
+        self.assertEqual(json.loads(result.stdout), {
+            "result": {"sig": "signature"},
+        })
+        self.assertIn("diagnostic", result.stderr)
+
+    def test_direct_submit_module_returns_failure_for_bad_input(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            input_path = Path(temporary) / "input.actions"
+            input_path.write_text("not-json\n")
+            result = subprocess.run([
+                sys.executable, "-m", "tinman.submit", "--signer", sys.executable,
+                "--input-file", str(input_path), "--fail-file", "-",
+            ], capture_output=True, text=True, timeout=10)
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("not-json", result.stdout)
 
     def test_broadcast_uses_unbounded_block_age(self):
         hived = mock.Mock()

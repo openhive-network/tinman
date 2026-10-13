@@ -49,6 +49,7 @@ def check_sdist_contents(sdist):
     with tarfile.open(sdist, "r:gz") as archive:
         names = archive.getnames()
     required_suffixes = (
+        "/.gitlab-ci.yml",
         "/txgen.conf.example",
         "/server.conf.example",
         "/scripts/hive_compatibility.py",

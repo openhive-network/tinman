@@ -56,6 +56,7 @@ package:
 container:
   extends: .standard-job
   stage: container
+  resource_group: container-$CI_COMMIT_REF_SLUG
   image: docker:29.0.0-cli
   services:
     - docker:29.0.0-dind
@@ -71,8 +72,14 @@ container:
         printf '%s' "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
         docker tag "$TINMAN_IMAGE" "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
         docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-        docker tag "$TINMAN_IMAGE" "$CI_REGISTRY_IMAGE:$CI_COMMIT_BRANCH"
-        docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_BRANCH"
+        branch_ref=$(git ls-remote --exit-code origin "refs/heads/$CI_COMMIT_BRANCH") || exit 1
+        branch_head=$(printf '%s\n' "$branch_ref" | cut -f1)
+        if [ "$branch_head" = "$CI_COMMIT_SHA" ]; then
+          docker tag "$TINMAN_IMAGE" "$CI_REGISTRY_IMAGE:$CI_COMMIT_BRANCH"
+          docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_BRANCH"
+        else
+          echo "Skipping branch image tag: $CI_COMMIT_BRANCH has moved past $CI_COMMIT_SHA"
+        fi
       fi
 
 hive-read-only:

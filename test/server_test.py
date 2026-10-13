@@ -79,6 +79,16 @@ class ServerTest(unittest.TestCase):
                 )
                 with client.session_transaction() as flask_session:
                     csrf_token = flask_session["csrf_token"]
+                for invalid_token in ("wrong-token", "é"):
+                    with self.subTest(csrf_token=invalid_token):
+                        self.assertEqual(client.post(
+                            "/account_create", headers=headers,
+                            data={
+                                "csrf_token": invalid_token,
+                                "new_account_name": "alice",
+                            },
+                        ).status_code, 400)
+                        broadcast.assert_not_called()
                 self.assertEqual(client.post(
                     "/account_create", headers=headers,
                     data={"csrf_token": csrf_token},

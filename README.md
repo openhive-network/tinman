@@ -5,9 +5,7 @@ A `tinman` testnet allows all, or some subset of, user accounts to
 easily be *ported* from the main network.
 
 The canonical upstream is
-[`hive/tinman`](https://gitlab.syncad.com/hive/tinman). That project is marked
-`not-maintained`; its `develop` branch last changed in November 2020. This
-modernization is based on that branch and keeps the verified core pipeline
+[`hive/tinman`](https://gitlab.syncad.com/hive/tinman). This modernization keeps the core pipeline
 (`snapshot -> txgen -> keysub -> submit`) working with current Python and Hive
 testnet images. See [`COMPATIBILITY.md`](COMPATIBILITY.md) for the exact tested
 versions and evidence.
@@ -371,8 +369,11 @@ make docker-test
 
 After the container tests pass on a push to `develop` or `master`, CI publishes
 `registry.gitlab.syncad.com/hive/tinman:<full-commit-sha>` and updates the
-matching branch image tag (`develop` or `master`). Merge-request pipelines build
-and test without publishing.
+matching branch image tag (`develop` or `master`) only if that commit is still
+the branch head. Publication jobs are serialized per branch so older jobs
+cannot overwrite a newer branch image. Merge-request pipelines build and test
+without publishing. Pipelines created before this guard was added retain their
+old publishing behavior; do not retry their container jobs.
 
 ```bash
 docker run --rm registry.gitlab.syncad.com/hive/tinman:develop --help
