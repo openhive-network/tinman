@@ -61,6 +61,8 @@ def main(argv):
     parser.add_argument("--get-dev-key", default="get_dev_key", dest="get_dev_key_exe", metavar="FILE", help="Specify path to get_dev_key tool")
     args = parser.parse_args(argv[1:])
 
+    util.ensure_distinct_paths(args.input_file, args.output_file)
+
     if args.output_file == "-":
         output_file = sys.stdout
     else:

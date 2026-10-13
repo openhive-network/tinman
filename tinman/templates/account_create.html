@@ -25,7 +25,7 @@
         <h3>Account Create</h3>
         
         <form action="" method="post">
-          {{ form.csrf }}
+          <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
         
           <div class="input text">
             {{ form.new_account_name.label }} {{ form.new_account_name }}

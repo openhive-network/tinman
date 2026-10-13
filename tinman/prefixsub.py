@@ -42,7 +42,9 @@ def main(argv):
     parser.add_argument("-i", "--input-file", default="-", dest="input_file", metavar="FILE", help="File to read actions from")
     parser.add_argument("-o", "--output-file", default="-", dest="output_file", metavar="FILE", help="File to write actions to")
     args = parser.parse_args(argv[1:])
-    
+
+    util.ensure_distinct_paths(args.input_file, args.output_file)
+
     if args.output_file == "-":
         output_file = sys.stdout
     else:

@@ -1,7 +1,7 @@
 {
   "metadata":{
     "snapshot:semver":"9.0",
-    "snapshot:origin_api":"http://calculon.local"
+    "snapshot:origin_api":"http://example.invalid"
   },
   "dynamic_global_properties":{
      "total_vesting_fund_hive":{

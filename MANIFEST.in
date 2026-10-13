@@ -1,0 +1,5 @@
+include COMPATIBILITY.md
+include .gitlab-ci.yml
+include *.conf.example
+recursive-include scripts *.py
+recursive-include test *.actions *.json *.py

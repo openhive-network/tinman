@@ -118,7 +118,7 @@ operation_variants = (
       ("author", "string"),
       ("permlink", "string"),
       ("max_accepted_payout", "asset"),
-      ("percent_steem_dollars", "uint32"),
+      ("percent_hbd", "uint32"),
       ("allow_votes", "boolean"),
       ("allow_curation_rewards", "boolean"),
       ("extensions", comment_options_extensions)
@@ -186,8 +186,8 @@ operation_variants = (
       ("to", "string"),
       ("agent", "string"),
       ("escrow_id", "uint32"),
-      ("sbd_amount", "asset"),
-      ("steem_amount", "asset"),
+      ("hbd_amount", "asset"),
+      ("hive_amount", "asset"),
       ("fee", "asset"),
       ("ratification_deadline", "time_point_sec"),
       ("escrow_expiration", "time_point_sec"),
@@ -213,8 +213,8 @@ operation_variants = (
       ("who", "string"),
       ("receiver", "string"),
       ("escrow_id", "uint32"),
-      ("sbd_amount", "asset"),
-      ("steem_amount", "asset")
+      ("hbd_amount", "asset"),
+      ("hive_amount", "asset")
     )
   ),
   (
@@ -278,8 +278,8 @@ operation_variants = (
     "claim_reward_balance",
     (
       ("account", "string"),
-      ("reward_steem", "asset"),
-      ("reward_sbd", "asset"),
+      ("reward_hive", "asset"),
+      ("reward_hbd", "asset"),
       ("reward_vests", "asset")
     )
   ),

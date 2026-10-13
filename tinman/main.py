@@ -1,44 +1,32 @@
 #!/usr/bin/env python3
 
-import collections
+from importlib import import_module
 import sys
-
-from . import snapshot
-from . import txgen
-from . import gatling
-from . import keysub
-from . import sample
-from . import submit
-from . import warden
-from . import amountsub
-from . import durables
-from . import prefixsub
-from . import server
 
 class Help(object):
 
     @staticmethod
     def main(argv):
         print("Available commands:")
-        for k, v in commands.items():
-            print("   "+k)
+        for command_name in commands:
+            print("   "+command_name)
         print("argv:", argv)
         return
 
-commands = collections.OrderedDict((
-            ("snapshot", snapshot),
-            ("txgen"   , txgen   ),
-            ("gatling" , gatling ),
-            ("keysub"  , keysub  ),
-            ("sample"  , sample  ),
-            ("submit"  , submit  ),
-            ("warden"  , warden  ),
-            ("amountsub"  , amountsub  ),
-            ("durables"  , durables  ),
-            ("prefixsub", prefixsub),
-            ("server", server),
-            ("help"    , Help    ),
-           ))
+commands = (
+    "snapshot",
+    "txgen",
+    "gatling",
+    "keysub",
+    "sample",
+    "submit",
+    "warden",
+    "amountsub",
+    "durables",
+    "prefixsub",
+    "server",
+    "help",
+)
 
 def main(argv):
     if len(argv) == 0:
@@ -48,11 +36,24 @@ def main(argv):
     module_name = argv[1]
     if module_name == "--help":
         module_name = "help"
-    module = commands.get(module_name)
-    if module is None:
+    if module_name not in commands:
         print("no module specified, executing help")
         Help.main([])
         return 1
+    if module_name == "help":
+        module = Help
+    else:
+        try:
+            module = import_module("." + module_name, __package__)
+        except ModuleNotFoundError as error:
+            if module_name == "server" and error.name in {"flask", "wtforms"}:
+                print(
+                    "tinman server requires optional dependencies; "
+                    "install them with 'pip install tinman[server]'.",
+                    file=sys.stderr,
+                )
+                return 2
+            raise
     return module.main(argv[1:])
 
 def sys_main():

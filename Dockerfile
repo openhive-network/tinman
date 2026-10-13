@@ -1,9 +1,10 @@
-FROM python:3.6
-RUN apt-get update && apt-get -y install libyajl-dev
-ENV PIPENV_VENV_IN_PROJECT=1
-RUN pip install pipenv
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /tinman
-ADD Pipfile Pipfile.lock /tinman/
-RUN pipenv install
-ADD . /tinman/
-ENTRYPOINT ["pipenv", "run", "python", "-m", "tinman"]
+COPY . /tinman/
+RUN python -m pip install --no-cache-dir .
+
+ENTRYPOINT ["tinman"]
