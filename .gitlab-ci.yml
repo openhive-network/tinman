@@ -5,6 +5,9 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
 
+default:
+  tags: [public-runner-docker]
+
 stages:
   - test
   - package
