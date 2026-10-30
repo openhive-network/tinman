@@ -1,0 +1,77 @@
+# Profile for hive/tinman, written by `aidev project scaffold` (#13561).
+#
+# Schema reference: docs/architecture/project-profile.md
+# Onboarding procedure: the `onboard-external-project` skill.
+# Guide: docs/operations/onboarding-an-external-project.md
+#
+# The generator writes a starting point, not a governed answer: every
+# binding below is the command a maintainer said this project runs, and it
+# is reviewed and edited like any other declaration.
+version: 2
+project: tinman
+
+gitlab:
+  host: "gitlab.syncad.com"
+  path: "hive/tinman"
+  id: 228
+
+# AIDEV integrates into its own branch (protected: Developers push/merge, no
+# force push) and hands it off to develop by merge request (`aidev handoff`); develop
+# uses merge commits. AIDEV never pushes develop, so `stable` is omitted.
+branches:
+  integration: "aidev/integration"
+  handoff: "develop"
+
+# How this project's suites execute (#13892): one kind, stated once.
+environment:
+  kind: "container"
+  image: "registry.gitlab.syncad.com/hive/tinman/aidev-tests@sha256:6f9b229519e69a9f2f899890ec3461178faffcd82d3ad718dd770a4d1b56fb2e"
+  inputs: ["pyproject.toml"]
+
+issues:
+  intake_label: todo
+  taxonomy: ".aidev/labels.yaml"
+  decompose:
+    # `never` is where an external project starts: nothing marks work
+    # approved on this project's behalf until there is a track record.
+    auto_todo: never
+  # Reports about this project's work are filed against this project.
+  watcher_reports: self
+
+# Verification slots. Each binding is what this project genuinely runs for
+# that slot — never one selection repeated under seven names, which makes
+# seven gates report on the same evidence while claiming to check seven
+# different things. Every slot runs .aidev/run-checks.sh in the image above,
+# offline; see .aidev/README.md for the steps and what is not run.
+verification:
+  quick:
+    adapter: command
+    args: [".aidev/run-checks.sh", "quick", "unit", "cli", "package", "compile"]
+    artifacts: ["test-results/quick/"]
+  full:
+    adapter: command
+    args: [".aidev/run-checks.sh", "full", "unit", "cli", "package", "compile"]
+    artifacts: ["test-results/full/"]
+  baseline:
+    adapter: command
+    args: [".aidev/run-checks.sh", "baseline", "unit"]
+    artifacts: ["test-results/baseline/"]
+  canary:
+    adapter: command
+    args: [".aidev/run-checks.sh", "canary", "unit", "cli", "package", "compile"]
+    artifacts: ["test-results/canary/"]
+  static:
+    adapter: command
+    args: [".aidev/run-checks.sh", "static", "compile"]
+    artifacts: ["test-results/static/"]
+  coverage:
+    adapter: command
+    args: [".aidev/run-checks.sh", "coverage", "unit"]
+    artifacts: ["test-results/coverage/"]
+  system:
+    adapter: command
+    args: [".aidev/run-checks.sh", "system", "unit", "cli", "package", "compile"]
+    artifacts: ["test-results/system/"]
+
+# Capability grants for target-side code. Empty until this project needs one.
+capabilities: []
